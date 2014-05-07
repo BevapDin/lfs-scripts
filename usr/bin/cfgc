@@ -1,0 +1,482 @@
+#! /bin/bash
+# This scrip configures, compiles and installs a software package.
+# It runs the usual three commands:
+# ./configure
+# make
+# make install
+
+AUTO_PREFIX=/packages/
+
+export MAKEFLAGS="${MAKEFLAGS--j 2}"
+
+# Run the configure command?
+DO_CONFIGURE=1
+# Run the make command?
+DO_MAKE=1
+# Run the make install command?
+DO_INSTALL=1
+# Tar the build folder to $folder-ok.tar.bz2?
+MAKE_BUILD_TAR=0
+
+USE_XORG_CONFIG=0
+
+# Editor for myconfig
+EDITOR="${EDITOR:-vim}"
+PAGER="${PAGER:-less}"
+# Less (debug) output
+QUIET=0
+
+# Default cache file for configure
+CACHE_FILE="config.cache"
+# Current folder
+FOLDER="$(pwd)"
+# Default value for the --prefix option of configure
+DEF_PREFIX="/usr"
+# File with the configure options.
+CFG_FILE="${CFG_FILE:-myconfig}"
+# Build outside the source root dir
+BUILD_OUTSIDE=0
+# Remove an existing cache file, if cache file is defined
+REMOVE_CACHE_FILE=1
+
+SOURCE=""
+
+MAKE_CMD="make"
+INSTALL_CMD="make install"
+
+cmake_configure() {
+	mkdir -p build || return $?
+	cd build || return $?
+	ccmake .. || return $?
+	return 0
+}
+
+# CONFIGURE_CMD: command for configure script
+if [ -z "$CONFIGURE_CMD" ] ; then
+	if [ -e "configure" -a -x "configure" ] ; then
+		CONFIGURE_CMD="./configure"
+	elif [ -e "waf" -a -x "waf" ] ; then
+		CONFIGURE_CMD="./waf configure"
+		MAKE_CMD="./waf build"
+		INSTALL_CMD="./waf install"
+	elif [ -e "CMakeLists.txt" ] ; then
+		CONFIGURE_CMD="cmake_configure"
+		MAKE_CMD="make"
+		INSTALL_CMD="make install"
+	fi
+fi
+
+if [ -e "$HOME/.cfgc.conf" ] ; then
+	. "$HOME/.cfgc.conf" || exit $?
+fi
+
+
+usage() {
+	cat <<- HERE
+	Usage: $0 <options> <source>
+	<source> ... Package source (may be a folder or a tar archiv), if missing use current folder.
+	Options:
+	--no-configure ... Do not configure, make nor make install
+	--backup ... Run mk-pkg-backup before install.
+	--no-make ... Do not make nor make install.
+	--no-install ... Do not install nor backup.
+	--remove-old ... Remove backuped files before install (implies --backup).
+	--prefix <prefix> ... Use this as default prefix.
+	--build-outside ... Build outside of the source dir.
+	--configure <file> ... Use the file as configure script.
+	--keep-cache ... Do not remove an existing cache file
+	--quiet ... Less debug output.
+	--tar ... Do not tar the builddir after successfull installation"
+	--xorg ... make an xorg config (user \$XORG_CONFIG: $XORG_CONFIG)
+	-i ... interactive
+	-a ... set prefix to something like $AUTO_PREFIX/<pkg>/<version>
+HERE
+}
+
+askyesno() {
+	while true ; do
+		echo -n "${1}: [${2}] "
+		local r
+		read r || exit $?
+		if [ -z "${r}" ] ; then r="${2}" ; fi
+		case "${r}" in
+			y|Y|yes|YES|Yes|1|on|ON|On)
+				return 0
+				;;
+			n|N|no|NO|No|0|off|OFF|Off)
+				return 1
+				;;
+		esac
+	done
+}
+
+askstring() {
+	echo -n "${1} [${2}]: "
+	read answer || exit $?
+	if [ -z "${answer}" ] ; then answer="${2}" ; fi
+	return 0
+}
+
+interactive() {
+	if askyesno "Do make?" "${DO_MAKE}" ; then DO_MAKE=1 ; else DO_MAKE=0 ; fi
+	if askyesno "Do make install?" "${DO_INSTALL}" ; then DO_INSTALL=1 ; else DO_INSTALL=0 ; fi
+	if askyesno "Build outside?" "${BUILD_OUTSIDE}" ; then BUILD_OUTSIDE=1 ; else BUILD_OUTSIDE=0 ; fi
+	if askyesno "Quiet?" "${QUIET}" ; then QUIET=1 ; else QUIET=0 ; fi
+	if askyesno "Remove existing cache file?" "${REMOVE_CACHE_FILE}" ; then REMOVE_CACHE_FILE=1 ; else REMOVE_CACHE_FILE=0 ; fi
+	if askyesno "Tar the build dir?" "${MAKE_BUILD_TAR}" ; then MAKE_BUILD_TAR=1 ; else MAKE_BUILD_TAR=0 ; fi
+	if askyesno "Xorg config?" "${USE_XORG_CONFIG}" ; then USE_XORG_CONFIG=1 ; else USE_XORG_CONFIG=0 ; fi
+	if askyesno "Do configure?" "${DO_CONFIGURE}" ; then DO_CONFIGURE=1 ; else DO_CONFIGURE=0 ; fi
+
+	askstring "Install prefix" "${DEF_PREFIX}" && DEF_PREFIX="${answer}"
+	askstring "Edit command" "${EDITOR}" && EDITOR="${answer}"
+	askstring "Configure command" "${CONFIGURE_CMD}" && CONFIGURE_CMD="${answer}"
+	askstring "Make command" "${MAKE_CMD}" && MAKE_CMD="${answer}"
+	askstring "Install command" "${INSTALL_CMD}" && INSTALL_CMD="${answer}"
+	askstring "Configuration file" "${CFG_FILE}" && CFG_FILE="${answer}"
+	askstring "Cache file for configure" "${CACHE_FILE}" && CACHE_FILE="${answer}"
+}
+
+while [ $# -gt 0 ] ; do
+	opt="$1"
+	shift 1
+	case "$opt" in
+		-i)
+			interactive
+			;;
+		--xorg)
+			USE_XORG_CONFIG=1
+			;;
+		--no-configure)
+			DO_CONFIGURE=0
+			DO_MAKE=0
+			DO_INSTALL=0
+			;;
+		--no-make)
+			DO_MAKE=0
+			DO_INSTALL=0
+			;;
+		--no-install)
+			DO_INSTALL=0
+			;;
+		--prefix)
+			DEF_PREFIX="$1"
+			shift
+			;;
+		--build-outside)
+			BUILD_OUTSIDE=1
+			;;
+		--configure)
+			CONFIGURE_CMD="$1"
+			shift
+			;;
+		--tar)
+			MAKE_BUILD_TAR=1
+			;;
+		--quiet)
+			QUIET="1"
+			;;
+		-a)
+			DEF_PREFIX="$(pwd | sed 's#^.*/##;s#^'$USER'#'$USER'/#;s#/--*#/#;s#^#'"$AUTO_PREFIX"'/#')"
+			echo "Automaticly choosen prefix: $DEF_PREFIX"
+			;;
+		--keep-cache)
+			REMOVE_CACHE_FILE=0
+			;;
+		*)
+			if [ -e "$opt" -a -z "$SOURCE" ] ; then
+				SOURCE="$opt"
+			else
+				echo "Unknown option: $opt" 1>&2
+				usage
+				exit 1
+			fi
+			;;
+	esac
+done
+
+# Append the default value to an option.
+# Parameters:
+# 1. The option like '--prefix' (including the --)
+# 2. The value - this can be an empty string.
+# In that case the function does nothing - so an empty
+# default value means no default.
+# 3. The configure options file ($CFG_FILE).
+# The function replaces the occurrence of this parameter
+# in the file with the parameter and the value:
+# replace '#$1' with '$1=$2' (removes the comment char
+# in front of the line).
+# Note: the first parameter should not contain special
+# characters (regarding sed's s-command (regex)), but it
+# can contain escaped special characters.
+# The second parameter will be escaped automatically.
+replace_default_options() {
+	if [ -z "$2" ] ; then
+		# Dont replace to empty string
+		return 0
+	fi
+	arg="$(echo "$2" | sed 's:\&\\:\\\\&:g')"
+	sed -i -r 's%^#[ ]*'"$1"'=.*%'"$1"'='"$arg"'%;s%^#[ ]*'"$1"'$%'"$1"'='"$arg"'%' "$3"
+	grep -qe "$1"'='"$2" "$3"
+}
+
+if ! [ -z "$SOURCE" ] ; then
+	if [ -f "$SOURCE" ] ; then
+		echo "Trying to extract archiv $SOURCE"
+		mkdir .tmp && \
+		(cd .tmp && tar -xf "../$SOURCE") || exit $?
+		if [ "$(ls -1A .tmp | wc -l)" != 1 ] ; then
+			echo "$SOURCE has more / less than one folder" 1>&2
+			ls -1 .tmp 1>&2
+			exit 1
+		fi
+		p="$(ls -1A .tmp)"
+		if [ -e "$p" ] ; then
+			echo "$p from $SOURCE exists" 1>&2
+			exit 1
+		fi
+		echo "Extracted $SOURCE to $p - using it as SOURCE"
+		mv ".tmp/$p" "$p" || exit $?
+		rmdir .tmp
+		cd "$p" || exit $?
+	else
+		if [ -d "$SOURCE" ] ; then
+			echo "Using $SOURCE as source dir"
+			cd "$SOURCE" || exit $?
+		else
+			echo "$SOURCE - what is that?" 1>&2
+			exit 1
+		fi
+	fi
+fi
+
+if [ -z "$CONFIGURE_CMD" ] ; then
+	echo "No configure program found!" 1>&2
+	exit 1
+fi
+
+#if [ ! -f "$CONFIGURE_CMD" ] ; then
+#	echo "configure program >$CONFIGURE_CMD< is not a file!" 1>&2
+#	exit 1
+#fi
+
+# source_dir ... Source dir - folder with sources
+# build_dir ... Build dir - folder with build files
+# If building in source dir "source_dir == build_dir"
+# if building outside (BUILD_OUSIDE == 1) "source_dir != build_dir"
+if [ "$BUILD_OUTSIDE" == 0 ] ; then
+	build_dir="$PWD"
+	source_dir="$PWD"
+else
+	build_dir="$HOME/build"-"${PWD##*/}"
+	source_dir="$PWD"
+fi
+
+if [ "${build_dir}" != "${source_dir}" ] ; then
+	# Building outside, adjust path of configure script
+	CONFIGURE_CMD="$PWD/$CONFIGURE_CMD"
+	mkdir -p "${build_dir}" && cd "${build_dir}" || exit $?
+	echo "Building in external dir ${build_dir}"
+fi
+
+if [ ! -f "$CFG_FILE" ] ; then
+	# This if for the first run (no configure options file exists)
+	# First show some files (only when this package version is first installed).
+	if [ "$QUIET" != 1 ] ; then
+		for f in INSTALL README install readme ; do
+			if [ -f "${source_dir}/$f" ] ; then
+				$PAGER "${source_dir}/$f" && break
+			fi
+		done
+	fi
+
+	# Look for old configure options files in $HOME
+	if ls "$HOME"/.*.config 2>/dev/null 1>&2 ; then
+		if [ "$QUIET" != 1 ] ; then
+			ls -lhdt "$HOME"/.*.config
+			echo -n "^ You may like to use an old config file [Continue|abort]: "
+			read A
+			case "$A" in
+				a|A)
+					exit 0 
+					;;
+				c|C)
+					;;
+				*)
+					;;
+			esac
+		fi
+	fi
+
+	# Create the configure options file
+	# configure gives lines like those:
+	# -o, --option=<val>   This option means...
+	# or
+	# Lines without options, only description.
+	# We reformat it to
+	# # This option means
+	# #-o
+	# #--option=<val>
+	$CONFIGURE_CMD --help 2>&1 | sed -r '
+/^ *-[^ ,]*[ ,]/ {
+:start
+# Find and replace a option at the start of the line
+s/^ *(-[^ ,]*)[ ,]*([^ ].*)$/ \2\n#\1/
+# Try it another time for more options on this line.
+t start
+}
+s/^/#/' > "$CFG_FILE"
+
+	if [ "$USE_XORG_CONFIG" == 1 ] ; then
+		for d in $XORG_CONFIG ; do
+			if ! replace_default_options "${d/=*}" "${d/#*=}" "$CFG_FILE" ; then
+				echo $d >> "$CFG_FILE"
+			fi
+		done
+
+		if [ "${XORG_CONFIG/--prefix=}" == "$XORG_CONFIG" ] ; then
+			replace_default_options '--prefix' "$DEF_PREFIX" "$CFG_FILE"
+			if [ "$DEF_PREFIX" == "/usr" ] ; then
+				replace_default_options '--libexecdir' "/usr/lib" "$CFG_FILE"
+				replace_default_options '--sysconfdir' "/etc" "$CFG_FILE"
+				replace_default_options '--localstatedir' "/var" "$CFG_FILE"
+			fi
+		fi
+	else
+		replace_default_options '--prefix' "$DEF_PREFIX" "$CFG_FILE"
+		if [ "$DEF_PREFIX" == "/usr" ] ; then
+			replace_default_options '--libexecdir' "/usr/lib" "$CFG_FILE"
+			replace_default_options '--sysconfdir' "/etc" "$CFG_FILE"
+			replace_default_options '--localstatedir' "/var" "$CFG_FILE"
+		fi
+	fi
+	replace_default_options '--cache-file' "$CACHE_FILE" "$CFG_FILE"
+	replace_default_options '--enable-gtk-doc' "yes" "$CFG_FILE"
+
+	sed -e '
+s:# *--enable-static:--enable-static=yes #:
+s:# *--enable-shared:--enable-shared=yes #:
+s:# *--with-gnu-ld:--with-gnu-ld #:
+' -i "$CFG_FILE"
+
+	sed -i -r "s%^#.*--with-gnu-ld=.*\$%--with-gnu-ld%" "$CFG_FILE"
+
+	# Link the new config file to ~ (for use as old config file)
+	ln "$CFG_FILE" "$HOME/.`basename $FOLDER`.config"
+fi
+
+if [ "$QUIET" != 1 ] ; then
+	# Show file and let the user edit it.
+	$EDITOR "$CFG_FILE"
+fi
+
+if [ $DO_CONFIGURE == 0 ] ; then
+	exit 0
+fi
+
+# This is a temp script file. It is executed later and
+# contains the only a call of the configure program
+# and all the parameters. We use a seperate script file
+# so that bash replaces environment variables that
+# can be used in the options file (e. g. $HOME).
+F="/tmp/$RANDOM-$$.tmp"
+if [ -f $F ] ; then
+	# Remove old script file or exit
+	rm $F || exit 1
+fi
+if [ "$REMOVE_CACHE_FILE" == 1 ] ; then
+	if [ -n "$CACHE_FILE" ] ; then
+		if [ -f "$CACHE_FILE" ] ; then
+			# Remove the old cache file
+			rm "$CACHE_FILE"
+		fi
+	fi
+fi
+# Print configure call
+echo $CONFIGURE_CMD ' \' >> $F
+# Print parameters.
+sed -n -r '
+s/#[^"'"'"']*$//;
+/^\s*$/ { d }
+/^#/ !{
+	# Lines that are not a comment.
+	# Insert a line continue at the line end for bash
+	s/$/ \\/
+	p
+}' "$CFG_FILE" >> $F
+echo '' >> $F
+#vim $F
+#exit 0
+# Execute (source) the script.
+. $F
+# Save result.
+RET=$?
+# Delete temp file.
+rm $F
+if [ $RET -ne 0 ] ; then
+	# Exit on error.
+	exit $RET
+fi
+
+evalute_result() {
+	RET=$1
+	what="$2"
+	if [ $RET -ne 0 ] ; then
+		echo "# -----------------------------------------------"
+		echo "# Failed to $what"
+		echo "# -----------------------------------------------"
+	else
+		echo "# -----------------------------------------------"
+		echo "# Success: $what"
+		echo "# -----------------------------------------------"
+	fi
+	return $RET
+}
+
+do_make() {
+	test "$DO_MAKE" == 1 || exit 0
+	echo "# -----------------------------------------------"
+	echo "# Now making! -----------------------------------"
+	echo "# -----------------------------------------------"
+	$MAKE_CMD 1>> $HOME/make.1.log 2>> $HOME/make.2.log
+	evalute_result $? make
+}
+
+do_install() {
+	test "$DO_INSTALL" == 1 || exit 0
+	if [ -e "/packages/$USER/Current" ] ; then
+		echo "Package seems to be installed currently"
+		echo "I'm going to uninstall it"
+		tpkgs --uninstall "$USER" || return $?
+		if [ -e "/packages/$USER/Current" ] ; then
+			echo "Uninstall it failed! You must uninstall it!"
+			exit 2
+		fi
+	fi
+	echo "# -----------------------------------------------"
+	echo "# Now installing --------------------------------"
+	echo "# -----------------------------------------------"
+	$INSTALL_CMD 1>> $HOME/install.1.log 2>> $HOME/install.2.log </dev/null
+	evalute_result $? installing
+}
+
+evalute_result 0 configure
+do_make || exit $?
+do_install || exit $?
+
+echo "# -----------------------------------------------"
+echo "# Everything's fine now. ------------------------"
+echo "# Finished configure, make and make install. ----"
+echo "# -----------------------------------------------"
+
+if [ "$MAKE_BUILD_TAR" == 1 ] ; then
+	cd $HOME && \
+		mk-ok-tar "${build_dir}"
+	if [ "${build_dir}" != "${source_dir}" ] ; then
+		rm -r "${source_dir}"
+	fi
+
+	if [ -n "$SOURCE" -a -f "$SOURCE" ] ; then
+		mv "$SOURCE" /vala/weg
+	fi
+fi
+
