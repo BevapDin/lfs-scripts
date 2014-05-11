@@ -1,0 +1,62 @@
+#! /bin/bash
+
+replace=false
+
+while [ -n "$1" ] ; do
+ if [ "$1" = "-f" ] ; then
+  replace=true
+  shift 1
+  continue
+ fi
+
+ d=${1%/}
+ shift 1
+
+ if [ ! -d "$d" ] ; then
+  echo "$d: no directory"
+  continue
+ fi
+
+ source_file="${d##*/}"
+ source_dir="${d%/*}"
+
+ if [ "$source_dir" == "$d" ] ; then
+  source_dir="$PWD"
+ fi
+
+ tar_file="${d##*/}-ok.tar.bz2"
+ tar_dir="${PWD}"
+
+
+ input="$source_dir/$source_file"
+ output="$tar_dir/$tar_file"
+
+ size="$(du -hs "$input")"
+ if [ -e "$output" ] ; then
+  if ! $replace ; then
+   echo "$output already exists!"
+   continue
+  fi
+ fi
+ tmp="$(mktemp)"
+ echo "Taring and zipping $source_file ($size) ..."
+ (cd "$source_dir" && tar -jc "$source_file" > "$tmp" )
+ r=$?
+ if [ $r != 0 ] ; then
+  rm "$tmp"
+  exit $r
+ fi
+
+ if ! mv "$tmp" "$output" ; then
+  r="$1"
+  rm "$tmp" "$output" 2>/dev/null
+  exit $r
+ fi
+ chown --reference "$input" "$output"
+ du -hs "$output"
+
+ echo "Taring ready, removing $input ..."
+ rm -fr "$input" || exit $?
+
+done
+
