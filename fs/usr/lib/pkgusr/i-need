@@ -1,0 +1,45 @@
+#! /bin/bash
+
+# This is a wrapper to /usr/sbin/install_package
+# It create the requested new package and runs `su` on it.
+# You usually use it in situations like this:
+# some-pkg$ ./configure
+# Error: missing dependency: package other-package could not be found!
+# some-pkg$ i-need other-package
+# other-package$ wget ... && configure && install && exit
+# some-pkg$ ./configure
+
+if [ "$EUID" != 0 ] ; then
+	if [ -z "$1" ] ; then
+		echo "I need what?"
+		echo "Usage: $0 <package>"
+		exit 1
+	fi
+	# Register that this package needs package "$1"
+	echo "$1" >> "$HOME/.needs-pkg"
+	sudo "$0" "$1" "$LOGNAME"
+	exit $?
+fi
+
+if [ -z "$1" -o -z "$2" ] ; then
+	echo "Error: source package not specified" 1>&2
+	exit 1
+fi
+
+# $npkg is needed by $opkg
+npkg="$1"
+opkg="$2"
+
+nhome="/usr/src/$npkg"
+ohome="/usr/src/$opkg"
+
+if ! [ -e "$ohome" ] ; then
+	echo "Error: source package invalid" 1>&2
+	exit 1
+fi
+
+# Register that $npkg is needed by $opkg
+bash -l -c "/usr/sbin/install_package '$npkg'"
+echo "$opkg" >> "$nhome/.needed-by-pkg"
+chown "$npkg:" "$nhome/.needed-by-pkg"
+
