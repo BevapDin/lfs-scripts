@@ -35,7 +35,7 @@ do
   esac
 done
 
-$DAISY_CHAIN "$@" || exit $?
+/usr/lib/pkgusr/exec $DAISY_CHAIN -p "$@" || exit $?
 
 test z"$dirs" != z &&
 echo 1>&2 '***' mkdir "$cmdline"
