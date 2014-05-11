@@ -1,0 +1,10 @@
+#Use the same environment regardless of whether we use 
+#`su <package>' or 'su - <package>' to become the package user.
+
+echo "/etc/pkgusr/bashrc" 1>&2
+
+export HISTIGNORE="&:ls:[bf]g:exit"
+
+source ~/.bash_profile
+
+echo -en "\033]0;${USER}@install\007"
