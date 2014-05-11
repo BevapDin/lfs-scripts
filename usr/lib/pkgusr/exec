@@ -1,0 +1,78 @@
+#! /bin/bash
+#
+# Extending the "More control and package management using package users (v1.4)"
+# script:
+# Instead of calling the commands directly from the wrapper scripts in
+# /usr/lib/pkgusr, those script call this scrip.
+# This script executes the command as normal.
+# If this does not succeed, it prints the command that failed and the return
+# code. Than it waits for user input on what to do.
+# Possible choices are:
+# retry - try again. This is useful when you have fixed the source of the problem
+# (e.g. missing write permission of a folder).
+# ignore - ignore the error and continue as if everything worked fine. This is
+# useful when you have run the command in some other way (e.g. copied the file
+# as root into a folder that only root can access).
+# abort - return error code, this is the same as if this script did not exist.
+# If this is a non-interactive shell and the folder "$HOME/pkg" exist/could
+# be created: write error information and command line to "$HOME/pkg/exec"
+# and wait for answers in "$HOME/pkg/answer" (sleep for a second and check again
+# until forever).
+# This feature is useful when the input/output of make install is piped to a
+# log file.
+
+PATH=/bin:/usr/bin:$PATH
+
+CMD_X="$1"
+shift
+if [ -z "$HOME" ] ; then
+  if [ -z "$USER" ] ; then
+    USER="`id -nu`"
+  fi
+  HOME="/usr/src/$USER"
+fi
+while true ; do
+  $CMD_X "$@"
+  ERG=$?
+  if [ $ERG == 0 ] ; then
+    exit 0
+  fi
+  if [ "$CMD_X" == /bin/cp ] ; then
+    # Special handling for cp: if source and target are equal
+    # anyway just return success.
+    if [ "$#" == 2 ] ; then
+      if cmp "$1" "$2" >/dev/null 2>/dev/null ; then
+        echo "CMP: $1 $2 == 0"
+        exit 0
+      fi
+    fi
+  fi
+  # Shortcut: create a file "$HOME/exec-ignore" and all errors
+  # are reported back like normal.
+  if [ -f "$HOME/exec-ignore" ] ; then
+    exit $ERG
+  fi
+  if ! istty ; then
+    /bin/mkdir -p "$HOME/pkg"
+  fi
+  if [ -d "$HOME/pkg" ] ; then
+    echo '***' $CMD_X "$@" failed with $ERG. >> "$HOME/pkg/exec"
+    echo '[r]etry, [i]gnore or [a]bort? [r]' >> "$HOME/pkg/exec"
+    echo "Put your answer in '$HOME/pkg/answer'." >> "$HOME/pkg/exec"
+    while [ ! -f "$HOME/pkg/answer" ] ; do
+      sleep 1
+    done
+    read RET < "$HOME/pkg/answer"
+    rm -f "$HOME/pkg/answer" "$HOME/pkg/exec"
+  else
+    echo '***' "$CMD_X" "$@" "failed with $ERG."
+    echo '[r]etry, [i]gnore or [a]bort? [r]'
+    read RET
+  fi
+  case "$RET" in
+    i|I*) exit 0 ;;
+    a|A*) exit $ERG ;;
+    *)    continue ;;
+  esac
+done
+

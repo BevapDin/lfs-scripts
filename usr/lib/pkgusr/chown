@@ -24,7 +24,7 @@ fi
 #if [ "$1" == "root.root" ]; then
   echo 1>&2 '***' chown "$@"
 #else
-#  $DAISY_CHAIN "$@" || exit $?
+#  /usr/lib/pkgusr/exec $DAISY_CHAIN "$@" || exit $?
 #fi
 
 exit 0

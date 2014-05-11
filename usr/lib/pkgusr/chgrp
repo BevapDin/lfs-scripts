@@ -18,10 +18,25 @@ if [ $UID == 0 ]; then
   exec $DAISY_CHAIN "$@"
 fi
 
+# Extension:
+# When requested to change group to "install" do either nothing (if the file
+# has already that group) or just print a message '**** ' with the command
+# and exit with 0
+if [ $# == 2 ] ; then
+  if [ "$1" == "install" ] ; then
+    bgc=`stat -c "%G" "$2"`
+    if [ "$1" == "$bgc" ] ; then
+      exit 0
+    fi
+    echo "**** $@"
+    exit 0
+  fi
+fi
+
 if [ "$1" == "tty" ]; then
   echo 1>&2 '***' chgrp "$@"
 else
-  $DAISY_CHAIN "$@" || exit $?
+  /usr/lib/pkgusr/exec $DAISY_CHAIN "$@" || exit $?
 fi
 
 exit 0

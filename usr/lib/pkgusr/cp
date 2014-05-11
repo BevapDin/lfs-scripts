@@ -1,0 +1,5 @@
+#!/bin/bash
+
+/usr/lib/pkgusr/exec /bin/cp "$@" || exit $?
+
+exit 0
