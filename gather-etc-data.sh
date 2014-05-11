@@ -1,6 +1,13 @@
 #! /bin/bash
 
 find \
+	/etc/pkgusr \
+	/etc/syslog.conf \
+	/etc/profile \
+	/etc/profile.d/extrapaths.sh \
+	/etc/profile.d/dircolors.sh \
+	/etc/bashrc \
+	/etc/pkgusr \
 	/etc/suid-programs | \
 while read path ; do
 	src="$path"
