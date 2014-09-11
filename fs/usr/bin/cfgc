@@ -5,8 +5,6 @@
 # make
 # make install
 
-AUTO_PREFIX=/packages/
-
 export MAKEFLAGS="${MAKEFLAGS--j 2}"
 
 # Run the configure command?
@@ -77,10 +75,8 @@ usage() {
 	<source> ... Package source (may be a folder or a tar archiv), if missing use current folder.
 	Options:
 	--no-configure ... Do not configure, make nor make install
-	--backup ... Run mk-pkg-backup before install.
 	--no-make ... Do not make nor make install.
 	--no-install ... Do not install nor backup.
-	--remove-old ... Remove backuped files before install (implies --backup).
 	--prefix <prefix> ... Use this as default prefix.
 	--build-outside ... Build outside of the source dir.
 	--configure <file> ... Use the file as configure script.
@@ -88,7 +84,6 @@ usage() {
 	--quiet ... Less debug output.
 	--tar ... Do not tar the builddir after successfull installation"
 	--xorg ... make an xorg config (user \$XORG_CONFIG: $XORG_CONFIG)
-	-a ... set prefix to something like $AUTO_PREFIX/<pkg>/<version>
 HERE
 }
 
@@ -127,10 +122,6 @@ while [ $# -gt 0 ] ; do
 			;;
 		--quiet)
 			QUIET="1"
-			;;
-		-a)
-			DEF_PREFIX="$(pwd | sed 's#^.*/##;s#^'$USER'#'$USER'/#;s#/--*#/#;s#^#'"$AUTO_PREFIX"'/#')"
-			echo "Automaticly choosen prefix: $DEF_PREFIX"
 			;;
 		--keep-cache)
 			REMOVE_CACHE_FILE=0
@@ -427,9 +418,4 @@ if [ "$MAKE_BUILD_TAR" == 1 ] ; then
 	if [ "${build_dir}" != "${source_dir}" ] ; then
 		rm -r "${source_dir}"
 	fi
-
-	if [ -n "$SOURCE" -a -f "$SOURCE" ] ; then
-		mv "$SOURCE" /vala/weg
-	fi
 fi
-
