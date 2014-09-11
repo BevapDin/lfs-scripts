@@ -88,61 +88,14 @@ usage() {
 	--quiet ... Less debug output.
 	--tar ... Do not tar the builddir after successfull installation"
 	--xorg ... make an xorg config (user \$XORG_CONFIG: $XORG_CONFIG)
-	-i ... interactive
 	-a ... set prefix to something like $AUTO_PREFIX/<pkg>/<version>
 HERE
-}
-
-askyesno() {
-	while true ; do
-		echo -n "${1}: [${2}] "
-		local r
-		read r || exit $?
-		if [ -z "${r}" ] ; then r="${2}" ; fi
-		case "${r}" in
-			y|Y|yes|YES|Yes|1|on|ON|On)
-				return 0
-				;;
-			n|N|no|NO|No|0|off|OFF|Off)
-				return 1
-				;;
-		esac
-	done
-}
-
-askstring() {
-	echo -n "${1} [${2}]: "
-	read answer || exit $?
-	if [ -z "${answer}" ] ; then answer="${2}" ; fi
-	return 0
-}
-
-interactive() {
-	if askyesno "Do make?" "${DO_MAKE}" ; then DO_MAKE=1 ; else DO_MAKE=0 ; fi
-	if askyesno "Do make install?" "${DO_INSTALL}" ; then DO_INSTALL=1 ; else DO_INSTALL=0 ; fi
-	if askyesno "Build outside?" "${BUILD_OUTSIDE}" ; then BUILD_OUTSIDE=1 ; else BUILD_OUTSIDE=0 ; fi
-	if askyesno "Quiet?" "${QUIET}" ; then QUIET=1 ; else QUIET=0 ; fi
-	if askyesno "Remove existing cache file?" "${REMOVE_CACHE_FILE}" ; then REMOVE_CACHE_FILE=1 ; else REMOVE_CACHE_FILE=0 ; fi
-	if askyesno "Tar the build dir?" "${MAKE_BUILD_TAR}" ; then MAKE_BUILD_TAR=1 ; else MAKE_BUILD_TAR=0 ; fi
-	if askyesno "Xorg config?" "${USE_XORG_CONFIG}" ; then USE_XORG_CONFIG=1 ; else USE_XORG_CONFIG=0 ; fi
-	if askyesno "Do configure?" "${DO_CONFIGURE}" ; then DO_CONFIGURE=1 ; else DO_CONFIGURE=0 ; fi
-
-	askstring "Install prefix" "${DEF_PREFIX}" && DEF_PREFIX="${answer}"
-	askstring "Edit command" "${EDITOR}" && EDITOR="${answer}"
-	askstring "Configure command" "${CONFIGURE_CMD}" && CONFIGURE_CMD="${answer}"
-	askstring "Make command" "${MAKE_CMD}" && MAKE_CMD="${answer}"
-	askstring "Install command" "${INSTALL_CMD}" && INSTALL_CMD="${answer}"
-	askstring "Configuration file" "${CFG_FILE}" && CFG_FILE="${answer}"
-	askstring "Cache file for configure" "${CACHE_FILE}" && CACHE_FILE="${answer}"
 }
 
 while [ $# -gt 0 ] ; do
 	opt="$1"
 	shift 1
 	case "$opt" in
-		-i)
-			interactive
-			;;
 		--xorg)
 			USE_XORG_CONFIG=1
 			;;
