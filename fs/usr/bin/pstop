@@ -1,0 +1,5 @@
+#! /bin/bash
+
+# Send the STOP signal to the process given as pattern for pkill (see man pkill)
+
+exec pkill -SIGSTOP "$@"
