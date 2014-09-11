@@ -1,55 +1,94 @@
 #! /bin/bash
-# This scrip configures, compiles and installs a software package.
-# It runs the usual three commands:
-# ./configure
-# make
-# make install
+#
+# This script is a sophisticated wrapper over the
+# `./configure && make && make install` process.
+#
+# It runs those three commands, logs the output of make into the files
+# "make.1.log" / "make.2.log" (`make`) and "install.1.log" / "install.2.log" `make install`).
+# The output of configure is directly shown.
+# It's also possible to only run configure (--no-make), or only run configure and make (--no-install)
+# or only show and edit the configuration but not to run configure (--no-configure).
+#
+# The script should be run from inside the source folder that contains the configure script.
+#
+# It will look for a file named "myconfig" (path taken from $CFG_FILE). If the files does
+# not exist, configure is run with the single parameter '--help'. The output is reformatted and
+# stored in the "myconfig" file. If that fails the script exits. The script also creates a *hardlink* of
+# that file into the home directory under then name ".<basename-of-current-folder>.config". This is done
+# to keep the configuration when the source source directory is archived (moved away/deleted).
+# Additionally some options (and parameters) are enabled in that file (like --prefix, --cache-file, etc.)
+#
+# If the "myconfig" exist (or if it has been created), it is show to the user via the EDITOR command
+# (normally it's vim).
+#
+# Than the actual configuration is done with the parameters taken from "myconfig".
+# If that succeeds, make is run and than make install (command for each of the three stages can be set:
+# MAKE_CMD, INSTALL_CMD, CONFIGURE_CMD).
 
+#
+# Usage:
+# Usually one does just cd into the source folder and call cfgc, it shows the configuration, allowing one
+# to edit it. Upon leaving the editor the configure&make&install process is started.
+# The final output of the script should be "Everything's fine now." - this indicates all three stages
+# have been successfully run. In any other case the result should be clearly visible like this:
+# # -----------------------------------------------
+# # ... Something happened, it failed or it succeeded ...
+# # -----------------------------------------------
+#
+# Parameters of the command line can be shown with cfgc --help
+
+
+# Basic default configuration of the script (content of existing environment variables is preferred):
+# ================================
+
+# Default parameters for make (parallel make, probably only useful with hardware concurrency).
 export MAKEFLAGS="${MAKEFLAGS--j 2}"
+# Editor for editing text data
+EDITOR="${EDITOR:-vim}"
+# Viewer for showing text data
+PAGER="${PAGER:-less}"
+# Enable for less (debug) output
+QUIET="${QUIET:-0}"
+# Cache file for configure
+CACHE_FILE="${CACHE_FILE:-config.cache}"
+# Default value for the --prefix option of configure, this can be an empty string
+DEF_PREFIX="${DEF_PREFIX:-/usr}"
+# File with the configure options
+CFG_FILE="${CFG_FILE:-myconfig}"
+# Folder where the script has been started in
+FOLDER="$(pwd)"
 
+# Storage for command line options
+# ================================
+
+# Remove an existing cache file (only when $CACHE_FILE is non-empty)
+REMOVE_CACHE_FILE=1
 # Run the configure command?
 DO_CONFIGURE=1
 # Run the make command?
 DO_MAKE=1
 # Run the make install command?
 DO_INSTALL=1
-# Tar the build folder to $folder-ok.tar.bz2?
+# Call mk-ok-tar to tar (and compress) the build folder to $folder-ok.tar.bz2?
 MAKE_BUILD_TAR=0
-
+# Apply special values for xorg packages, should only be enabled for xorg packages
 USE_XORG_CONFIG=0
-
-# Editor for myconfig
-EDITOR="${EDITOR:-vim}"
-PAGER="${PAGER:-less}"
-# Less (debug) output
-QUIET=0
-
-# Default cache file for configure
-CACHE_FILE="config.cache"
-# Current folder
-FOLDER="$(pwd)"
-# Default value for the --prefix option of configure
-DEF_PREFIX="/usr"
-# File with the configure options.
-CFG_FILE="${CFG_FILE:-myconfig}"
-# Build outside the source root dir
-BUILD_OUTSIDE=0
-# Remove an existing cache file, if cache file is defined
-REMOVE_CACHE_FILE=1
-
+# Build outside the source directory
+BUILD_OUTSIDE="${BUILD_OUTSIDE:-0}"
+# Source archive file or source archive path, used instead of the current folder, archives
+# will be extracted automatically.
 SOURCE=""
-
+# Command for the "make" stage
 MAKE_CMD="make"
+# Command for the "make install" stage
 INSTALL_CMD="make install"
-
-cmake_configure() {
-	mkdir -p build || return $?
-	cd build || return $?
-	ccmake .. || return $?
-	return 0
-}
-
-# CONFIGURE_CMD: command for configure script
+# Command for the configure stage / the configure script
+# This will try to figure it out automatically:
+# 0. If CONFIGURE_CMD is already defined, use it.
+# 1. Use "./configure" if there is an executable configure file here.
+# 2. Else use "./waf configuration" if there is an executable waf file here.
+# 3. Else use cmake if there is a CMakeLists.txt file here.
+# 4. Leave CONFIGURE_CMD empty, can be set later and will be checked before being called.
 if [ -z "$CONFIGURE_CMD" ] ; then
 	if [ -e "configure" -a -x "configure" ] ; then
 		CONFIGURE_CMD="./configure"
@@ -64,26 +103,39 @@ if [ -z "$CONFIGURE_CMD" ] ; then
 	fi
 fi
 
+# Wrapper for the configure of cmake based systems:
+# It does not use the usual system ("myconfig" file, edited with vim), but ccmake (interactive console
+# based configure tool for cmake).
+cmake_configure() {
+	mkdir -p build || return $?
+	cd build || return $?
+	ccmake .. || return $?
+	return 0
+}
+
+# Include package specific configuration from ~/.cfcg.conf, this file can override any
+# setting. In case of a unusual configure command, this is the place to put it:
+# set CONFIGURE_CMD
 if [ -e "$HOME/.cfgc.conf" ] ; then
 	. "$HOME/.cfgc.conf" || exit $?
 fi
 
-
+# List command line options and p
 usage() {
 	cat <<- HERE
 	Usage: $0 <options> <source>
-	<source> ... Package source (may be a folder or a tar archiv), if missing use current folder.
+	<source> ... Package source (may be a folder or a tar archive), if missing use current folder.
 	Options:
 	--no-configure ... Do not configure, make nor make install
 	--no-make ... Do not make nor make install.
 	--no-install ... Do not install nor backup.
 	--prefix <prefix> ... Use this as default prefix.
-	--build-outside ... Build outside of the source dir.
+	--build-outside ... Build outside of the source directory.
 	--configure <file> ... Use the file as configure script.
 	--keep-cache ... Do not remove an existing cache file
 	--quiet ... Less debug output.
-	--tar ... Do not tar the builddir after successfull installation"
-	--xorg ... make an xorg config (user \$XORG_CONFIG: $XORG_CONFIG)
+	--tar ... Archive and compress the source (and build) directory after successful installation"
+	--xorg ... Default to the xorg configuration (user \$XORG_CONFIG: $XORG_CONFIG).
 HERE
 }
 
@@ -126,6 +178,14 @@ while [ $# -gt 0 ] ; do
 		--keep-cache)
 			REMOVE_CACHE_FILE=0
 			;;
+		--help|-h|-\?)
+			usage
+			exit 1
+			;;
+		-*)
+			echo "Unknown option $opt" 1>&2
+			exit 1
+			;;
 		*)
 			if [ -e "$opt" -a -z "$SOURCE" ] ; then
 				SOURCE="$opt"
@@ -138,24 +198,22 @@ while [ $# -gt 0 ] ; do
 	esac
 done
 
-# Append the default value to an option.
+# Append the default value to an option in the $CFG_FILE file.
 # Parameters:
-# 1. The option like '--prefix' (including the --)
+# 1. The option name like '--prefix' (including the --)
 # 2. The value - this can be an empty string.
-# In that case the function does nothing - so an empty
-# default value means no default.
+# In that case the function does nothing - so an empty default value means no default.
 # 3. The configure options file ($CFG_FILE).
 # The function replaces the occurrence of this parameter
 # in the file with the parameter and the value:
-# replace '#$1' with '$1=$2' (removes the comment char
-# in front of the line).
+# replace '#$1' with '$1=$2' (removes the comment char in front of the line).
 # Note: the first parameter should not contain special
 # characters (regarding sed's s-command (regex)), but it
 # can contain escaped special characters.
 # The second parameter will be escaped automatically.
 replace_default_options() {
 	if [ -z "$2" ] ; then
-		# Dont replace to empty string
+		# Don't replace to empty string
 		return 0
 	fi
 	arg="$(echo "$2" | sed 's:\&\\:\\\\&:g')"
@@ -163,9 +221,15 @@ replace_default_options() {
 	grep -qe "$1"'='"$2" "$3"
 }
 
+# Extract the source archive, change to the source folder.
+# The archive file should contain exactly one folder in it's root.
+# That folder is moved into the current directory, the current directory is than
+# changed to that new folder.
+# If $SOURCE is a folder, the current directory is changed to it.
+# On error the script is exited.
 if ! [ -z "$SOURCE" ] ; then
 	if [ -f "$SOURCE" ] ; then
-		echo "Trying to extract archiv $SOURCE"
+		echo "Trying to extract archive $SOURCE"
 		mkdir .tmp && \
 		(cd .tmp && tar -xf "../$SOURCE") || exit $?
 		if [ "$(ls -1A .tmp | wc -l)" != 1 ] ; then
@@ -193,20 +257,18 @@ if ! [ -z "$SOURCE" ] ; then
 	fi
 fi
 
+# Note: don't check for existing file, configure command might be a complex command, not just a script file.
 if [ -z "$CONFIGURE_CMD" ] ; then
 	echo "No configure program found!" 1>&2
 	exit 1
 fi
 
-#if [ ! -f "$CONFIGURE_CMD" ] ; then
-#	echo "configure program >$CONFIGURE_CMD< is not a file!" 1>&2
-#	exit 1
-#fi
-
-# source_dir ... Source dir - folder with sources
-# build_dir ... Build dir - folder with build files
-# If building in source dir "source_dir == build_dir"
-# if building outside (BUILD_OUSIDE == 1) "source_dir != build_dir"
+# Prepare for building outside of the source directory:
+# Setup $source_dir and $build_dir
+# source_dir ... Root source directory - folder with sources
+# build_dir ... Build directory - folder with build files
+# If building in source directory: "source_dir == build_dir"
+# If building outside (BUILD_OUSIDE == 1): "source_dir != build_dir"
 if [ "$BUILD_OUTSIDE" == 0 ] ; then
 	build_dir="$PWD"
 	source_dir="$PWD"
@@ -217,11 +279,16 @@ fi
 
 if [ "${build_dir}" != "${source_dir}" ] ; then
 	# Building outside, adjust path of configure script
-	CONFIGURE_CMD="$PWD/$CONFIGURE_CMD"
+	# Note: this will not work with complex commands, only when $CONFIGURE_CMD is a simple file path.
+	if [ -e "$CONFIGURE_CMD" ] ; then
+		CONFIGURE_CMD="$PWD/$CONFIGURE_CMD"
+	fi
 	mkdir -p "${build_dir}" && cd "${build_dir}" || exit $?
-	echo "Building in external dir ${build_dir}"
+	echo "Building in external directory ${build_dir}"
 fi
 
+# Only done when the configure command is a file, else it's a (complex) script invocation,
+# possible another build system (waf/cmake)
 if [ ! -f "$CFG_FILE" ] ; then
 	# This if for the first run (no configure options file exists)
 	# First show some files (only when this package version is first installed).
@@ -234,6 +301,7 @@ if [ ! -f "$CFG_FILE" ] ; then
 	fi
 
 	# Look for old configure options files in $HOME
+	# TODO: the user should be able to select one of those, or compare it to the newly generated one
 	if ls "$HOME"/.*.config 2>/dev/null 1>&2 ; then
 		if [ "$QUIET" != 1 ] ; then
 			ls -lhdt "$HOME"/.*.config
@@ -268,15 +336,21 @@ s/^ *(-[^ ,]*)[ ,]*([^ ].*)$/ \2\n#\1/
 # Try it another time for more options on this line.
 t start
 }
+# Make the line a comment, resulting in a file with only comments
 s/^/#/' > "$CFG_FILE"
 
+	# Apply the default configuration values:
+	# Prefix, (libexec should be /usr/lib, not /usr/libexec),
+	# global package configuration should be in /etc, stuff should go in /var, not /usr/var.
 	if [ "$USE_XORG_CONFIG" == 1 ] ; then
+		# TODO: maybe move this somewhere else? This environment variables is part of the
+		# LFS installation process.
 		for d in $XORG_CONFIG ; do
 			if ! replace_default_options "${d/=*}" "${d/#*=}" "$CFG_FILE" ; then
 				echo $d >> "$CFG_FILE"
 			fi
 		done
-
+		# xorg is special: all packages should use the same paths
 		if [ "${XORG_CONFIG/--prefix=}" == "$XORG_CONFIG" ] ; then
 			replace_default_options '--prefix' "$DEF_PREFIX" "$CFG_FILE"
 			if [ "$DEF_PREFIX" == "/usr" ] ; then
@@ -293,9 +367,12 @@ s/^/#/' > "$CFG_FILE"
 			replace_default_options '--localstatedir' "/var" "$CFG_FILE"
 		fi
 	fi
+	# If the configuration script supports caching, do it.
 	replace_default_options '--cache-file' "$CACHE_FILE" "$CFG_FILE"
+	# If the package can build gtk documentation, do it.
 	replace_default_options '--enable-gtk-doc' "yes" "$CFG_FILE"
 
+	# Always build static *and* shared libraries. Always using gnu-ld - what else? (-;
 	sed -e '
 s:# *--enable-static:--enable-static=yes #:
 s:# *--enable-shared:--enable-shared=yes #:
@@ -318,28 +395,33 @@ if [ $DO_CONFIGURE == 0 ] ; then
 fi
 
 # This is a temp script file. It is executed later and
-# contains the only a call of the configure program
-# and all the parameters. We use a seperate script file
+# contains the call of the configure program
+# and all the parameters. We use a separate script file
 # so that bash replaces environment variables that
 # can be used in the options file (e. g. $HOME).
+# TODO: make this a function and use $(mktemp)
 F="/tmp/$RANDOM-$$.tmp"
 if [ -f $F ] ; then
 	# Remove old script file or exit
 	rm $F || exit 1
 fi
+
+# Remove cached configuration data, this can be disabled because at least one
+# package (audacity) needs this cache file later.
 if [ "$REMOVE_CACHE_FILE" == 1 ] ; then
 	if [ -n "$CACHE_FILE" ] ; then
 		if [ -f "$CACHE_FILE" ] ; then
-			# Remove the old cache file
 			rm "$CACHE_FILE"
 		fi
 	fi
 fi
-# Print configure call
+
+# Write configure call, add parameters from $CFG_FILE
 echo $CONFIGURE_CMD ' \' >> $F
-# Print parameters.
 sed -n -r '
+# remove comments to the end of the line
 s/#[^"'"'"']*$//;
+# remove empty (expect for white spaces) lines
 /^\s*$/ { d }
 /^#/ !{
 	# Lines that are not a comment.
@@ -348,19 +430,20 @@ s/#[^"'"'"']*$//;
 	p
 }' "$CFG_FILE" >> $F
 echo '' >> $F
-#vim $F
-#exit 0
-# Execute (source) the script.
+# Run the configure script.
 . $F
-# Save result.
+# TODO: move the to the below evalute_result 0 configure
 RET=$?
-# Delete temp file.
 rm $F
 if [ $RET -ne 0 ] ; then
-	# Exit on error.
 	exit $RET
 fi
 
+# Given the return value of a command ($?), check if that indicates failure or success and
+# print a message indicating that.
+# Returns the first parameter, so the caller can reuse it:
+# `do_some; if ! evalute_result $? "some"; then exit 1; fi`
+# TODO: use local variables
 evalute_result() {
 	RET=$1
 	what="$2"
@@ -376,6 +459,8 @@ evalute_result() {
 	return $RET
 }
 
+# Runs the make command (MAKE_CMD), log the output, returns the result of it.
+# Exists the script if make should not be done (DO_MAKE=0).
 do_make() {
 	test "$DO_MAKE" == 1 || exit 0
 	echo "# -----------------------------------------------"
@@ -385,6 +470,9 @@ do_make() {
 	evalute_result $? make
 }
 
+# Runs the install command (INSTALL_CMD), log the output, returns the result of it.
+# Exists the script if the installation should not be done (DO_INSTALL=0).
+# Checks whether the package is currently installed and tries to uninstall it first.
 do_install() {
 	test "$DO_INSTALL" == 1 || exit 0
 	if [ -e "/packages/$USER/Current" ] ; then
