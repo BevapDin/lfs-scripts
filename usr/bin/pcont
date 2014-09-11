@@ -1,0 +1,6 @@
+#! /bin/bash
+
+# Send the CONT signal to the process given as pattern for pkill (see man pkill)
+# Used after calling pstop.
+
+exec pkill -SIGCONT "$@"
