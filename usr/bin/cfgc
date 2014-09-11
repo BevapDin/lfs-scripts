@@ -198,6 +198,26 @@ while [ $# -gt 0 ] ; do
 	esac
 done
 
+# Given the return value of a command ($?), check if that indicates failure or success and
+# print a message (second parameter) indicating that.
+# Returns the first parameter, so the caller can reuse it:
+# `do_some; if ! evalute_result $? "some"; then exit 1; fi`
+# TODO: use local variables
+evalute_result() {
+	local result="$1"
+	local task="$2"
+	if [ "$result" -ne 0 ] ; then
+		echo "# -----------------------------------------------"
+		echo "# Failed to $task: return with $result"
+		echo "# -----------------------------------------------"
+	else
+		echo "# -----------------------------------------------"
+		echo "# Success: $task"
+		echo "# -----------------------------------------------"
+	fi
+	return "$result"
+}
+
 # Append the default value to an option in the $CFG_FILE file.
 # Parameters:
 # 1. The option name like '--prefix' (including the --)
@@ -399,12 +419,7 @@ fi
 # and all the parameters. We use a separate script file
 # so that bash replaces environment variables that
 # can be used in the options file (e. g. $HOME).
-# TODO: make this a function and use $(mktemp)
-F="/tmp/$RANDOM-$$.tmp"
-if [ -f $F ] ; then
-	# Remove old script file or exit
-	rm $F || exit 1
-fi
+F="$(mktemp)"
 
 # Remove cached configuration data, this can be disabled because at least one
 # package (audacity) needs this cache file later.
@@ -417,7 +432,7 @@ if [ "$REMOVE_CACHE_FILE" == 1 ] ; then
 fi
 
 # Write configure call, add parameters from $CFG_FILE
-echo $CONFIGURE_CMD ' \' >> $F
+echo $CONFIGURE_CMD ' \' >> "$F"
 sed -n -r '
 # remove comments to the end of the line
 s/#[^"'"'"']*$//;
@@ -428,36 +443,18 @@ s/#[^"'"'"']*$//;
 	# Insert a line continue at the line end for bash
 	s/$/ \\/
 	p
-}' "$CFG_FILE" >> $F
-echo '' >> $F
-# Run the configure script.
+}' "$CFG_FILE" >> "$F"
+echo '' >> "$F"
+# Run the configure script, it is run in this process, not a separate process in case it uses
+# functions taken from the configuration (e.g. CONFIGURE_CMD is just a function that wraps to the
+# actual script).
 . $F
-# TODO: move the to the below evalute_result 0 configure
-RET=$?
-rm $F
-if [ $RET -ne 0 ] ; then
-	exit $RET
+if ! evalute_result "$?" "configure" ; then
+	# Keeping the file $F so the user can inspect it (in case something went wrong when generating it).
+	echo "The configuration script is $F"
+	exit 1
 fi
-
-# Given the return value of a command ($?), check if that indicates failure or success and
-# print a message indicating that.
-# Returns the first parameter, so the caller can reuse it:
-# `do_some; if ! evalute_result $? "some"; then exit 1; fi`
-# TODO: use local variables
-evalute_result() {
-	RET=$1
-	what="$2"
-	if [ $RET -ne 0 ] ; then
-		echo "# -----------------------------------------------"
-		echo "# Failed to $what"
-		echo "# -----------------------------------------------"
-	else
-		echo "# -----------------------------------------------"
-		echo "# Success: $what"
-		echo "# -----------------------------------------------"
-	fi
-	return $RET
-}
+rm "$F"
 
 # Runs the make command (MAKE_CMD), log the output, returns the result of it.
 # Exists the script if make should not be done (DO_MAKE=0).
