@@ -64,6 +64,10 @@ public:
 	 * error message.
 	 */
 	std::string popArg(const std::string &errorString);
+	/**
+	 * Number of unprocessed arguments.
+	 */
+	size_t getArgCount() const;
 
 	void init(int argc, char *argv[], struct poptOption *optionsTable, const char *oh = "");
 	void usage();
