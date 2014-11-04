@@ -36,6 +36,10 @@ std::string Popt::popArg() {
 	return popArg("missing argument(s)");
 }
 
+size_t Popt::getArgCount() const {
+	return _args.size();
+}
+
 std::string Popt::popArg(const std::string &errorString) {
 	if(_args.empty()) {
 		throw MissingArgumentException(errorString);
@@ -203,6 +207,14 @@ Package &Popt::getPackage(Version &v, VersionFlags vf, bool versionMustExist) {
 		} else {
 			warnIfPackageExists(pname, pname + "lib");
 			warnIfPackageExists(pname, "lib" + pname);
+		}
+		const auto defaultPName = getDefaultPackageName();
+		if(!defaultPName.empty() && vf != NONE_NEEDED && _tp.hasPackage(defaultPName)) {
+			// Command line had no existing package, maybe it's the version number only?
+			Package &p = _tp.getPackage(defaultPName);
+			_args.insert(_args.begin(), pname);
+			v = getVersion(p, vf, versionMustExist);
+			return p;
 		}
 	}
 	Package &p = _tp.getPackage(pname);

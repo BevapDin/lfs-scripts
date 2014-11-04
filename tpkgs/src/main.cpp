@@ -354,7 +354,6 @@ You must specify one these actions:\n\
 				throw std::runtime_error(p.getName() + ": there is already another version installed");
 			}
 		}
-		tp.loadConfig(p, v);
 		pexec(tp, p, &InstallItem::install, v, flags);
 		if(dryRun) {
 			break;
