@@ -20,14 +20,14 @@
 #include "FindFilesInInstallDirs.h"
 
 Popt::Popt(TPKGS &tp)
-: _optCon(NULL)
+: _optCon(nullptr)
 , _args()
 , _tp(tp)
 {
 }
 
 Popt::~Popt() {
-	if(_optCon != NULL) {
+	if(_optCon != nullptr) {
 		poptFreeContext(_optCon);
 	}
 }
@@ -49,26 +49,31 @@ std::string Popt::popArg(const std::string &errorString) {
 	return result;
 }
 
-void Popt::init(int argc, char *argv[], struct poptOption *optionsTable, const char *oh) {
-	if(_optCon != NULL) {
+void Popt::clear() {
+	if(_optCon != nullptr) {
 		poptFreeContext(_optCon);
+		_optCon = nullptr;
 	}
-	_optCon = poptGetContext(NULL, argc, const_cast<const char**>(argv), optionsTable, 0);
-	assert(_optCon != NULL);
+	_args.clear();
+}
+
+void Popt::init(int argc, char *argv[], struct poptOption *optionsTable, const char *oh) {
+	clear();
+	_optCon = poptGetContext(nullptr, argc, const_cast<const char**>(argv), optionsTable, 0);
+	assert(_optCon != nullptr);
 	poptSetOtherOptionHelp(_optCon, oh);
 	const int opt = poptGetNextOpt(_optCon);
 	if(opt != -1) {
 		throw std::runtime_error("invalid command line");
 	}
-	_args.clear();
 	const char *arg;
-	while((arg = poptGetArg(_optCon)) != NULL) {
+	while((arg = poptGetArg(_optCon)) != nullptr) {
 		_args.push_back(arg);
 	}
 }
 
 void Popt::usage() {
-	assert(_optCon != NULL);
+	assert(_optCon != nullptr);
 	poptPrintUsage(_optCon, stderr, 1);
 }
 
