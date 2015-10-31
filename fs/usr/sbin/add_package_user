@@ -90,8 +90,7 @@ if [ $UID -ne 0 ]; then
 fi
 
 #test if user already exists
-grep -q "^$name:.*" $passwd
-if [ $? -eq 0 ]; then
+if grep -q "^$name:.*" $passwd ; then
   exit 0
 fi
 
