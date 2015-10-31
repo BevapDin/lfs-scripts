@@ -47,6 +47,8 @@ public:
 
 	static void removePrefix(std::string &s, const std::string &prefix);
 
+	void clear();
+
 public:
 	Popt(TPKGS &tp);
 	~Popt();
