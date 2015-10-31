@@ -26,5 +26,11 @@ fi
 XUSER="$1"
 DESC="$XUSER"
 XGROUP="$XUSER"
+# sed may not be available during building of a new LFS system.
+if type sed 1>/dev/null 2>/dev/null ; then
+  # group names must be 16 characters or less.
+  XGROUP="$(echo "$XUSER" | sed -u -r 's#^(.{16}).*$#\1#')"
+fi
+
 add_package_user "$DESC" "$XUSER" 10000 20000 "$XGROUP" 10000 20000 || exit 1
 exec su - "$XUSER"
