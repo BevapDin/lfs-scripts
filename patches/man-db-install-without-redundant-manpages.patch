@@ -1,0 +1,11 @@
+--- man/Makefile.old	2015-11-02 17:01:39.833170734 +0100
++++ man/Makefile	2015-11-02 16:58:33.261117961 +0100
+@@ -1209,7 +1209,7 @@
+ MAKEINFO = ${SHELL} /usr/src/man-db/man-db-2.7.2/build-aux/missing makeinfo
+ MANDIR_LAYOUT = GNU
+ MANIFEST_TOOL = :
+-MAN_SUBDIRS =  es it
++MAN_SUBDIRS = 
+ MKDIR_P = /usr/lib/pkgusr/mkdir -p
+ MSGFMT = /usr/bin/msgfmt
+ MSGFMT_015 = /usr/bin/msgfmt
