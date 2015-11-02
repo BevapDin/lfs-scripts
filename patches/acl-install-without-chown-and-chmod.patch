@@ -1,0 +1,11 @@
+--- acl/acl-2.2.52/include/install-sh.old	2015-11-02 09:12:55.011404567 +0100
++++ acl/acl-2.2.52/include/install-sh	2015-11-02 09:12:02.818759333 +0100
+@@ -108,7 +108,7 @@
+ 
+ if $INSTALL
+ then
+-    CP=cp; LN=ln; MKDIR=mkdir; CHMOD=chmod; CHOWN=_chown
++    CP=cp; LN=ln; MKDIR=mkdir; CHMOD=true; CHOWN=true
+ else
+     CP=true; LN=true; MKDIR=true; CHMOD=true; CHOWN=true
+ fi

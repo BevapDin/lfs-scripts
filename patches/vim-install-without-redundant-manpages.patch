@@ -1,0 +1,11 @@
+--- src/installman.sh.old	2015-11-02 17:16:16.127458630 +0100
++++ src/installman.sh	2015-11-02 17:16:28.263172596 +0100
+@@ -31,8 +31,6 @@
+ shift
+ evimname=$9
+ 
+-if ! [ -z "$langadd" ] ; then exit 0 ; fi
+-
+ helpsubloc=$scriptloc/doc
+ printsubloc=$scriptloc/print
+ synsubloc=$scriptloc/syntax
