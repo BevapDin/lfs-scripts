@@ -1,0 +1,22 @@
+#! /bin/bash
+
+# Wrapper script that simulates `su`. It does so by running `chroot` with
+# the current root as new root (which does actually not change the root at all).
+# However, it runs with a different user specification and that's what we want.
+# Warning: this is *highly* specific for install users (see the $HOME).
+# It is not to be used for normal users. It is supposed to be compatible with
+# the install_package script.
+
+if [ "$1" = '-' ] ; then
+    shift 1
+fi
+user="$1"
+shift 1
+
+chroot --userspec "$user:" / /tools/bin/env -i \
+    HOME="/usr/src/$user" \
+    USER="$user" \
+    TERM="$TERM" \
+    PS1='\u:\w\$ ' \
+    PATH=/bin:/usr/bin:/sbin:/usr/sbin:/tools/bin \
+    /tools/bin/bash --login +h "$@"
