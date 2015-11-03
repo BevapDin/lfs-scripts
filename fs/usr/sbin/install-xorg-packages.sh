@@ -111,11 +111,17 @@ if [ -e "/packages/$pkg/$version" ] ; then
 		exit 0
 	fi
 fi
+if [ -e "/packages/$pkg/Current" ] ; then
+	echo "NOTE: Package seems to be installed: $(readlink "/packages/$pkg/Current")"
+	echo
+fi
 
 tmpfile="$(mktemp)"
 cat > "$tmpfile" << EOF
 if ! [ -e '.url' ] ; then
 	echo '$burl' > '.url'
+	echo 'Updated .url file to:'
+	echo '$burl'
 fi
 if ! [ -e '$archiv' ] ; then
 	if ! wget -O '$archiv' -o /dev/null '$url' ; then
@@ -123,6 +129,12 @@ if ! [ -e '$archiv' ] ; then
 		echo 'Failed to download $archiv from $url'
 		exit 1
 	fi
+	echo 'Downloaded from $url ...'
+	if ! [ -e '$archiv' ] ; then
+		echo '... but the expected file $archiv is not there!' 1>&2
+		exit 1
+	fi
+	echo '... to $archiv'
 fi
 if ! [ -e '$bdir' ] ; then
 	if ! tar -xf '$archiv' ; then
@@ -130,9 +142,10 @@ if ! [ -e '$bdir' ] ; then
 		exit 1
 	fi
 	if ! [ -e '$bdir' ] ; then
-		echo '$archiv did not extract to $bdir'
+		echo '$archiv did not extract to $bdir' 1>&2
 		exit 1
 	fi
+	echo 'Extracted $archiv to $bdir'
 fi
 cd '$bdir' || exit \$?
 if ! cfgc --quiet --xorg --no-install --no-make 1>"\$HOME/conf.1.log" 2>"\$HOME/conf.2.log" </dev/null ; then
@@ -140,21 +153,25 @@ if ! cfgc --quiet --xorg --no-install --no-make 1>"\$HOME/conf.1.log" 2>"\$HOME/
 	exit 1
 fi
 if ! make 1>"\$HOME/make.1.log" 2>"\$HOME/make.2.log" </dev/null ; then
-	cat "\$HOME/make.2.log" 1>&2
+	cat "\$HOME/make.2.log"
 	exit 1
 fi
 if [ -e '/packages/$pkg/Current' ] ; then
 	tpkgs --uninstall || exit \$?
+	echo 'Previous version uninstalled'
 fi
 if ! make install 1>"\$HOME/install.1.log" 2>"\$HOME/install.2.log" </dev/null ; then
-	cat "\$HOME/install.2.log" 1>&2
+	cat "\$HOME/install.2.log"
 	exit 1
 fi
 if ! mk-vers.sh '$version' ; then
 	echo "Failed to pack the package (mk-vers.sh failed)" 1>&2
 fi
 cd ..
-if ! mk-ok-tar '$bdir' ; then
+if mk-ok-tar '$bdir' ; then
+	mv -v "$archiv" /s/to-canopus
+	rm {conf,make,install}.{1,2}.log
+else
 	echo "Failed to tar source dir $archiv" 1>&2
 fi
 
@@ -173,6 +190,7 @@ OK? [answer with y]
 EOF
 	read a || exit $?
 	if [ "$a" != 'y' ] ; then
+		rm "$tmpfile"
 		exit 1
 	fi
 else
