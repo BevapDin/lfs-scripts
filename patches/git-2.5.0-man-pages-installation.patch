@@ -1,0 +1,11 @@
+--- Makefile.old	2015-07-27 22:34:56.000000000 +0200
++++ Makefile	2015-11-05 18:59:40.938195891 +0100
+@@ -2271,7 +2271,7 @@
+ ifndef NO_GETTEXT
+ 	$(INSTALL) -d -m 755 '$(DESTDIR_SQ)$(localedir_SQ)'
+ 	(cd po/build/locale && $(TAR) cf - .) | \
+-	(cd '$(DESTDIR_SQ)$(localedir_SQ)' && umask 022 && $(TAR) xof -)
++	(cd '$(DESTDIR_SQ)$(localedir_SQ)' && umask 022 && $(TAR) x -m -o --no-overwrite-dir -f -)
+ endif
+ ifndef NO_PERL
+ 	$(MAKE) -C perl prefix='$(prefix_SQ)' DESTDIR='$(DESTDIR_SQ)' install

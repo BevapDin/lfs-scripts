@@ -1,0 +1,24 @@
+diff -ur guile-2.0.11/libguile/fports.c guile-2.0.11.new/libguile/fports.c
+--- guile-2.0.11/libguile/fports.c	2014-02-28 21:01:27.000000000 +0100
++++ guile-2.0.11.new/libguile/fports.c	2014-05-28 14:04:06.000000000 +0200
+@@ -40,7 +40,7 @@
+ #ifdef HAVE_STRUCT_STAT_ST_BLKSIZE
+ #include <sys/stat.h>
+ #endif
+-#include <poll.h>
++#include <sys/poll.h>
+ #include <errno.h>
+ #include <sys/types.h>
+ #include <sys/stat.h>
+diff -ur guile-2.0.11/libguile/poll.c guile-2.0.11.new/libguile/poll.c
+--- guile-2.0.11/libguile/poll.c	2013-03-18 22:30:13.000000000 +0100
++++ guile-2.0.11.new/libguile/poll.c	2014-05-28 14:05:17.000000000 +0200
+@@ -25,7 +25,7 @@
+ #  include <config.h>
+ #endif
+ 
+-#include <poll.h>
++#include <sys/poll.h>
+ 
+ #include "libguile/_scm.h"
+ #include "libguile/bytevectors.h"
