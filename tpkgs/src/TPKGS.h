@@ -39,7 +39,7 @@ protected:
 
 public:
 	TPKGS();
-	TPKGS(const TPKGS&) = delete;
+	TPKGS(const TPKGS&);
 	TPKGS& operator=(const TPKGS&) = delete;
 	~TPKGS();
 
