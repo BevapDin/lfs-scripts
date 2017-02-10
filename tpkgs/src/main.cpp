@@ -10,6 +10,7 @@
 #include <vector>
 #include <cassert>
 #include <fstream>
+#include <boost/filesystem/operations.hpp>
 
 #include "FindFiles.h"
 #include "DiffVersions.h"
