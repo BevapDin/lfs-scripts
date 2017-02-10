@@ -18,6 +18,8 @@ TPKGS::TPKGS()
 	_installPathMap.insert(PathPair("/", ""));
 }
 
+TPKGS::TPKGS(const TPKGS &) = default;
+
 TPKGS::~TPKGS() {
 }
 
