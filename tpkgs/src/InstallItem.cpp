@@ -155,7 +155,7 @@ void InstallItem::packReg(MXOSet &mxo) const {
 		mxo.addNote('+', "source will be created", _absSourcePath, _absInstalledPath);
 		// copy and link.
 		if(!mxo.dryRun()) {
-			fs::create_directory(_absSourcePath.parent_path());
+			fs::create_directories(_absSourcePath.parent_path());
 			moveOrCopy(_absInstalledPath, _absSourcePath);
 			// Here comes the same as in installLink
 			fs::create_symlink(_installContent, _absInstalledPath);
@@ -189,7 +189,7 @@ void InstallItem::packLink(MXOSet &mxo) const {
 	} else {
 		mxo.addNote('+', "source will be created", _absSourcePath, _absInstalledPath);
 		if(!mxo.dryRun()) {
-			fs::create_directory(_absSourcePath.parent_path());
+			fs::create_directories(_absSourcePath.parent_path());
 			fs::create_symlink(_installContent, _absSourcePath);
 			mxo.setOwner(_absSourcePath);
 		}
@@ -229,7 +229,7 @@ void InstallItem::installDir(MXOSet &mxo) const {
 	} else {
 		mxo.addNote('+', "destination will be created", _absSourcePath, _absInstalledPath);
 		if(!mxo.dryRun()) {
-			fs::create_directory(_absInstalledPath);
+			fs::create_directories(_absInstalledPath);
 			mxo.setOwner(_absInstalledPath);
 		}
 	}
@@ -243,7 +243,7 @@ void InstallItem::packDir(MXOSet &mxo) const {
 	} else {
 		mxo.addNote('+', "source will be created", _absSourcePath, _absInstalledPath);
 		if(!mxo.dryRun()) {
-			fs::create_directory(_absSourcePath);
+			fs::create_directories(_absSourcePath);
 			mxo.setOwner(_absSourcePath);
 		}
 	}
