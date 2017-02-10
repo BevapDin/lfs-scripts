@@ -224,7 +224,11 @@ bool Config::loadSetting(const std::string &line, const std::string &name, PPMap
 }
 
 void Config::loadConfigOptional(const Path &configFile) {
-	if(!boost::filesystem::exists(configFile)) {
+	boost::system::error_code ec;
+	if(!boost::filesystem::exists(configFile, ec)) {
+		return;
+	}
+	if(ec) {
 		return;
 	}
 	loadConfig(configFile);
