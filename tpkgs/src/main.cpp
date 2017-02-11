@@ -336,10 +336,23 @@ You must specify one these actions:\n\
 		Package &p = popt.getPackage(v, Popt::CURRENT, true);
 		tp.loadConfig(p);
 		popt.checkNoMoreArgs();
-		if(!bypass_install_check && p.isInstalled(v)) {
-			throw std::runtime_error(p.getName() + ": version " + v.getName() + " is already installed");
-		} else if(!bypass_install_check && p.isInstalled()) {
-			throw std::runtime_error(p.getName() + ": there is already another version installed");
+
+		if(p.isInstalled(v)) {
+			return 0;
+		}
+		if(p.isInstalled()) {
+			if(bypass_install_check) {
+				Version v2 = p.getInstalledVersion();
+				TPKGS tp2 = tp;
+				tp2.loadConfig(p, v2);
+				pexecU(tp2, p, &InstallItem::uninstall, v2, flags);
+				if(dryRun) {
+					break;
+				}
+				p.setUninstalled();
+			} else {
+				throw std::runtime_error(p.getName() + ": there is already another version installed");
+			}
 		}
 		tp.loadConfig(p, v);
 		pexec(tp, p, &InstallItem::install, v, flags);
