@@ -296,6 +296,9 @@ You must specify one these actions:\n\
 				saveToCache(cacheFile, iilist);
 			}
 		}
+		if(!dryRun) {
+			boost::filesystem::create_directory(p.getVersionPath(v));
+		}
 		pexec(tp, p, &InstallItem::pack, v, flags, iilist);
 		if(dryRun) {
 			break;
