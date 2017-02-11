@@ -161,21 +161,21 @@ int xmain(int argc, char *argv[]) {
 	int flagsA[3] = { 0, 0, 0 };
 	struct poptOption optionsTable[] = {
 		// Batch mode actions:
-		{ "current", 'c', POPT_ARG_VAL, &action, A_CURRENT, "print the most recent version and exit with 0. If no versions exist, exit with 1", NULL },
-		{ "installed", 'i', POPT_ARG_VAL, &action, A_INSTALLED, "print the currently installed version and exit with 0. If no version is installed, exit with 1", NULL },
+		{ "current", '\0', POPT_ARG_VAL, &action, A_CURRENT, "print the most recent version and exit with 0. If no versions exist, exit with 1", NULL },
+		{ "installed", '\0', POPT_ARG_VAL, &action, A_INSTALLED, "print the currently installed version and exit with 0. If no version is installed, exit with 1", NULL },
 
 		{ "cache-file", '\0', POPT_ARG_STRING, &cacheFile, 0, "cache file to cache files lists", 0 },
 
 		// Active actions
-		{ "install", '\0', POPT_ARG_VAL, &action, A_INSTALL, "install a spcific version of a package", NULL },
-		{ "uninstall", '\0', POPT_ARG_VAL, &action, A_UNINSTALL, "uninstall a package", NULL },
-		{ "pack", '\0', POPT_ARG_VAL, &action, A_PACK, "create a version from installed files", NULL },
+		{ "install", 'I', POPT_ARG_VAL, &action, A_INSTALL, "install a spcific version of a package", NULL },
+		{ "uninstall", 'U', POPT_ARG_VAL, &action, A_UNINSTALL, "uninstall a package", NULL },
+		{ "pack", 'P', POPT_ARG_VAL, &action, A_PACK, "create a version from installed files", NULL },
 
 		// Informational actions
-		{ "files", '\0', POPT_ARG_VAL, &action, A_LIST_FILES, "list files of a package version", NULL },
-		{ "diff", '\0', POPT_ARG_VAL, &action, A_DIFF_VERSIONS, "compare two versions of a package", NULL },
-		{ "info", '\0', POPT_ARG_VAL, &action, A_LIST_VERSIONS, "list versions of packages (if none given, list all)", NULL },
-		{ "config", '\0', POPT_ARG_VAL, &action, A_LIST_CONFIG, "show the configuration", NULL },
+		{ "files", 'F', POPT_ARG_VAL, &action, A_LIST_FILES, "list files of a package version", NULL },
+		{ "diff", 'D', POPT_ARG_VAL, &action, A_DIFF_VERSIONS, "compare two versions of a package", NULL },
+		{ "info", 'i', POPT_ARG_VAL, &action, A_LIST_VERSIONS, "list versions of packages (if none given, list all)", NULL },
+		{ "config", 'c', POPT_ARG_VAL, &action, A_LIST_CONFIG, "show the configuration", NULL },
 		// Flags
 		{ "verbose", 'v', POPT_ARG_NONE, &verbose, 0, NULL, NULL },
 		{ "dry-run", 'd', POPT_ARG_NONE, &dryRun, 0, "do not do anything, only show what would have been done, implies -v", NULL },
