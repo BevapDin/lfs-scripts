@@ -275,14 +275,14 @@ You must specify one these actions:\n\
 		Package &p = popt.getPackage2(v);
 		tp.loadConfig(p);
 		popt.checkNoMoreArgs();
-		if(!bypass_install_check && p.isInstalled()) {
-			throw std::runtime_error(p.getName() + ": there is already a version installed");
-		}
 		if(v.isEmptyVersion()) {
 			v = Version(popt.popArg("missing version"));
 		}
 		if(v.isEmptyVersion()) {
 			throw std::runtime_error("version string must not be empty");
+		}
+		if(!bypass_install_check && p.isInstalled()) {
+			throw std::runtime_error(p.getName() + ": there is already a version installed");
 		}
 		tp.loadConfig(p, v);
 		IIList iilist;
