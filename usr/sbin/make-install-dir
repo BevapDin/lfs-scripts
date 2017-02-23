@@ -1,0 +1,48 @@
+#! /bin/sh
+
+# Script to set up install directories.
+# Those directories are owned by the install group and have special rights.
+
+# Usage: $0 <dir>
+
+INSTALL_DIR_LIST=/etc/install-dirs
+INSTALL_GROUP=install
+INSTALL_PERM='g+w,o+t,g-s'
+
+update_install_dir_list() {
+	local d="$1"
+	if grep -qx "$d" "$INSTALL_DIR_LIST" ; then
+		return 0
+	fi
+	echo "$d" >>"$INSTALL_DIR_LIST"
+}
+
+ret=0
+for d in "$@" ; do
+	d="${d%/}" # remove trailing slash
+	if [ -L "$d" ] ; then
+		ret=1
+		echo "$d: is a link!" 1>&2
+		continue
+	elif [ -d "$d" ] ; then
+		# Target exists and is a folder, list the current permissions and owner
+		ls -ldh --color=auto "$d"
+	elif [ -e "$d" ] ; then
+		# Target exists, but is no folder. Use the parent folder instead.
+		# This is inteded for faster usage in case the install scripts print errors
+		# like "can not copy xxx to /usr/bin/xxx", in that case xxx denotes the executable.
+		# To remove the error we must make /usr/bin an install-dir, simply by "$0 /usr/bin/xxx".
+		d="$(dirname "$d")"
+	elif ! mkdir -p "$d" ; then
+		ret=$?
+		continue
+	fi
+
+	# actual work:
+	update_install_dir_list "$d"
+	chown root:$INSTALL_GROUP "$d" || ret=$?
+	chmod $INSTALL_PERM "$d" || ret=$?
+done
+
+exit "$ret"
+
