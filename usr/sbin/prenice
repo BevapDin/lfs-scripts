@@ -1,0 +1,14 @@
+#! /bin/bash
+
+niceval="$1"
+shift 1
+
+while [ $# -gt 0 ] ; do
+	cmd="$1"
+	shift 1
+	for d in `pgrep "$cmd"` ; do
+		if [ -n "$d" ] ; then
+			renice "$niceval" "$d"
+		fi
+	done
+done
