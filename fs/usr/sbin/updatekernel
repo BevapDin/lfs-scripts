@@ -1,0 +1,53 @@
+#! /bin/bash
+
+usage() {
+	cat <<-HERE
+	This scripts updates the symlinks on /boot (vmlinuz.*) to thhe new kernel.
+	That is: move vmliniz to vmlinuz.old and vmlinuz.new to vmlinuz
+	HERE
+	exit 1
+}
+
+case "$1" in
+	-?|-h|--help)
+		usage
+		;;
+	'')
+		;;
+	*)
+		echo "Unknown paramter: $1" 1>&2
+		exit 1
+esac
+
+vm="/boot/vmlinuz"
+vmnewname="lfskernel-$(uname -r)"
+vmnew="/boot/$vmnewname"
+
+if ! mount | grep -q /boot ; then
+	mount /boot || exit $?
+fi
+if ! [ -e "$vmnew" ] ; then
+	echo "Missing $vmnew this is supposed to be the current kernel!" 1>&2
+	exit 1
+fi
+
+
+# 1. backup current kernel symlink (if exists)
+if [ -e "$vm" ] ; then
+	if [ "$(readlink "$vm")" = "$vmnewname" ] ; then
+		echo "Symlink $vm is already uptodate: $vmnewname"
+		exit 0
+	fi
+	# Delete previously old kernel symlink
+	if [ -e "$vm.old" ] ; then
+		rm -v "$vm.old" || exit $?
+	fi
+	# Make the current symlink the old symlink
+	mv -v "$vm" "$vm.old" || exit $?
+fi
+# Noew "$vm" does not exists and can be linked
+ln -v -s "$vmnewname" "$vm" || exit $?
+chown -h kernel:kernel "$vm"
+
+exit 0
+
