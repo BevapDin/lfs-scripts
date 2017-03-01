@@ -1,0 +1,4 @@
+#! /bin/bash
+
+less -S +G /var/log/all.log
+
