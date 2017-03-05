@@ -41,6 +41,8 @@
 # Basic default configuration of the script (content of existing environment variables is preferred):
 # ================================
 
+# TODO: document me.
+AUTO_PREFIX=${AUTO_PREFIX-/packages/}
 # Default parameters for make (parallel make, probably only useful with hardware concurrency).
 export MAKEFLAGS="${MAKEFLAGS--j 2}"
 # Editor for editing text data
@@ -136,6 +138,7 @@ usage() {
 	--quiet ... Less debug output.
 	--tar ... Archive and compress the source (and build) directory after successful installation"
 	--xorg ... Default to the xorg configuration (user \$XORG_CONFIG: $XORG_CONFIG).
+	-a ... set prefix to something like $AUTO_PREFIX/<pkg>/<version>
 HERE
 }
 
@@ -174,6 +177,10 @@ while [ $# -gt 0 ] ; do
 			;;
 		--quiet)
 			QUIET="1"
+			;;
+		-a)
+			DEF_PREFIX="$(pwd | sed 's#^.*/##;s#^'$USER'#'$USER'/#;s#/--*#/#;s#^#'"$AUTO_PREFIX"'/#')"
+			echo "Automaticly choosen prefix: $DEF_PREFIX"
 			;;
 		--keep-cache)
 			REMOVE_CACHE_FILE=0
