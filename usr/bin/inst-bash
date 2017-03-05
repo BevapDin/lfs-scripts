@@ -1,0 +1,16 @@
+#! /bin/bash
+
+user="$(echo "$1" | sed 's#^/usr/src/##;s#/.*$##')"
+
+renice 5 $$ >/dev/null
+
+if ! [ -e "/usr/src/$user" ] ; then
+	echo "$user is not an install user"
+	user="$(echo "/usr/src/$user"* | sed 's#^/usr/src/##')"
+fi
+if ! [ -e "/usr/src/$user" ] ; then
+	echo "$user is not an install user"
+	exit 1
+fi
+
+exec sudo -H -u "$user" bash -l
