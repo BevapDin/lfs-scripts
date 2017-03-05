@@ -44,7 +44,7 @@
 # TODO: document me.
 AUTO_PREFIX=${AUTO_PREFIX-/packages/}
 # Default parameters for make (parallel make, probably only useful with hardware concurrency).
-export MAKEFLAGS="${MAKEFLAGS--j 2}"
+export MAKEFLAGS="${MAKEFLAGS--j1}"
 # Editor for editing text data
 EDITOR="${EDITOR:-vim}"
 # Viewer for showing text data
@@ -122,7 +122,6 @@ if [ -e "$HOME/.cfgc.conf" ] ; then
 	. "$HOME/.cfgc.conf" || exit $?
 fi
 
-# List command line options and p
 usage() {
 	cat <<- HERE
 	Usage: $0 <options> <source>
@@ -377,7 +376,7 @@ if [ ! -f "$CFG_FILE" ] ; then
 	# Look for old configure options files in $HOME
 	# TODO: the user should be able to select one of those, or compare it to the newly generated one
 	if ls "$HOME"/.*.config 2>/dev/null 1>&2 ; then
-		if [ "$QUIET" != 1 ] ; then
+ 		if [ "$QUIET" != 1 ] ; then
 			ls -lhdt "$HOME"/.*.config
 			echo -n "^ You may like to use an old config file [Continue|abort]: "
 			read A
@@ -480,6 +479,7 @@ F="$(mktemp)"
 if [ "$REMOVE_CACHE_FILE" == 1 ] ; then
 	if [ -n "$CACHE_FILE" ] ; then
 		if [ -f "$CACHE_FILE" ] ; then
+			# Remove the old cache file
 			rm "$CACHE_FILE"
 		fi
 	fi
@@ -488,21 +488,22 @@ fi
 # Write configure call, add parameters from $CFG_FILE
 echo $CONFIGURE_CMD ' \' >> "$F"
 sed -n -r '
-# remove comments to the end of the line
-s/#[^"'"'"']*$//;
-# remove empty (expect for white spaces) lines
-/^\s*$/ { d }
-/^#/ !{
-	# Lines that are not a comment.
-	# Insert a line continue at the line end for bash
-	s/$/ \\/
-	p
-}' "$CFG_FILE" >> "$F"
+	# remove comments to the end of the line
+	s/#[^"'"'"']*$//;
+	# remove empty (expect for white spaces) lines
+	/^\s*$/ { d }
+	/^#/ !{
+		# Lines that are not a comment.
+		# Insert a line continue at the line end for bash
+		s/$/ \\/
+		p
+	}' "$CFG_FILE" >> "$F"
 echo '' >> "$F"
+
 # Run the configure script, it is run in this process, not a separate process in case it uses
 # functions taken from the configuration (e.g. CONFIGURE_CMD is just a function that wraps to the
 # actual script).
-. $F
+. "$F"
 if ! evalute_result "$?" "configure" ; then
 	# Keeping the file $F so the user can inspect it (in case something went wrong when generating it).
 	echo "The configuration script is $F"
@@ -542,6 +543,8 @@ do_install() {
 	evalute_result $? installing
 }
 
+# If the configure step fails, the script is aborted above, so this can only
+# be reached when configure succeeded.
 evalute_result 0 configure
 do_make || exit $?
 do_install || exit $?
