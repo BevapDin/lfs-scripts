@@ -543,9 +543,6 @@ do_install() {
 	evalute_result $? installing
 }
 
-# If the configure step fails, the script is aborted above, so this can only
-# be reached when configure succeeded.
-evalute_result 0 configure
 do_make || exit $?
 do_install || exit $?
 
