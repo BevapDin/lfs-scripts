@@ -59,6 +59,8 @@ DEF_PREFIX="${DEF_PREFIX:-/usr}"
 CFG_FILE="${CFG_FILE:-myconfig}"
 # Folder where the script has been started in
 FOLDER="$(pwd)"
+# Version that is installed, if non-empty use `DESTDIR` during installation.
+VERSION=""
 
 # Storage for command line options
 # ================================
@@ -137,6 +139,7 @@ usage() {
 	--quiet ... Less debug output.
 	--tar ... Archive and compress the source (and build) directory after successful installation"
 	--xorg ... Default to the xorg configuration (user \$XORG_CONFIG: $XORG_CONFIG).
+	-v <version> ... Install with DESTDIR=/packages/$USER/<version>
 	-i ... interactive
 	-a ... set prefix to something like $AUTO_PREFIX/<pkg>/<version>
 HERE
@@ -183,6 +186,7 @@ interactive() {
 	askstring "Install command" "${INSTALL_CMD}" && INSTALL_CMD="${answer}"
 	askstring "Configuration file" "${CFG_FILE}" && CFG_FILE="${answer}"
 	askstring "Cache file for configure" "${CACHE_FILE}" && CACHE_FILE="${answer}"
+	askstring "Version for make install" "" && VERSION="${answer}"
 }
 
 while [ $# -gt 0 ] ; do
@@ -191,6 +195,10 @@ while [ $# -gt 0 ] ; do
 	case "$opt" in
 		-i)
 			interactive
+			;;
+		-v)
+			VERSION="$1"
+			shift 1
 			;;
 		--xorg)
 			USE_XORG_CONFIG=1
@@ -539,8 +547,15 @@ do_install() {
 	echo "# -----------------------------------------------"
 	echo "# Now installing --------------------------------"
 	echo "# -----------------------------------------------"
-	$INSTALL_CMD 1>> $HOME/install.1.log 2>> $HOME/install.2.log </dev/null
-	evalute_result $? installing
+	if [ -z "$VERSION" ] ; then
+		$INSTALL_CMD 1>> $HOME/install.1.log 2>> $HOME/install.2.log </dev/null
+		evalute_result $? installing
+	else
+		$INSTALL_CMD DESTDIR="/packages/$USER/$VERSION" 1>> $HOME/install.1.log 2>> $HOME/install.2.log </dev/null
+		evalute_result $? installing || return $?
+		tpkgs --install "$USER" "$VERSION"
+		evalute_result $? "installing via tpkgs"
+	fi
 }
 
 do_make || exit $?
