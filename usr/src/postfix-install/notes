@@ -1,0 +1,10 @@
+Needs special configure args:
+
+CCARGS='-DUSE_TLS -I/usr/include/openssl/ -DNO_NIS' \
+AUXLIBS='-lssl -lcrypto' \
+
+Needs special configure args:
+
+CCARGS='-DUSE_TLS -I/usr/include/openssl/ -DNO_NIS' \
+AUXLIBS='-lssl -lcrypto' \
+

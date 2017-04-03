@@ -1,0 +1,1 @@
+You may want to crate a pkgconfig file for this to make other programs recognize it's installed.
