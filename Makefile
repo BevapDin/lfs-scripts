@@ -21,3 +21,12 @@ ifneq "$(wildcard ${DESTDIR}/tools)" ""
 	$(foreach p,$(TOOLS_FILES), ln -fvs $$(pwd)/$p ${DESTDIR}/$p;)
 endif
 
+
+
+.PHONY: gather apply
+
+gather:
+	./gather-package-data.sh
+
+apply:
+	./apply-package-data.sh
