@@ -37,6 +37,8 @@ endif
 
 gather:
 	./gather-package-data.sh
+	./gather-etc-data.sh
 
 apply:
 	./apply-package-data.sh
+	./apply-etc-data.sh
