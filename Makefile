@@ -7,6 +7,15 @@ TOOLS_FILES := $(shell git ls-files tools)
 
 
 
+.PHONY: tpkgs
+
+tpkgs:
+	mkdir -p build
+	cd build && cmake ../tpkgs
+	$(MAKE) -C build
+
+
+
 .PHONY: install install-exec
 install: install-exec
 install-dirs:
@@ -15,11 +24,12 @@ ifneq "$(wildcard ${DESTDIR}/tools)" ""
 	mkdir -p $(sort $(foreach dir,${TOOLS_FILES},${DESTDIR}/$(dir ${dir})))
 endif
 
-install-exec: install-dirs
+install-exec: install-dirs tpkgs
 	$(foreach p,$(USR_FILES), ln -fs $$(pwd)/$p ${DESTDIR}/$p;)
 ifneq "$(wildcard ${DESTDIR}/tools)" ""
 	$(foreach p,$(TOOLS_FILES), ln -fvs $$(pwd)/$p ${DESTDIR}/$p;)
 endif
+	cp build/src/tpkgs /usr/bin
 
 
 
