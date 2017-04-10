@@ -1,0 +1,16 @@
+#! /bin/bash
+
+# Start lynx with a saerch for the term given on the command line.
+
+if [ "$#" = 0 ] ; then
+    echo "Missing search terms." 1>&2
+    exit 1
+fi
+
+q=""
+while [ $# -gt 0 ] ; do
+    q="$q+$1"
+    shift 1
+done
+
+exec lynx "http://www.google.com/search?hl=all&ie=ISO-8859-1&q=$q&btnG=Google-Search&num=100"
