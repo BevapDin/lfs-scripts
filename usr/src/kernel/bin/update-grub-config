@@ -3,7 +3,7 @@
 VERSION="${1?Missing version}"
 
 # Note: you might wanna cange this on other computers:
-GC_LINUX_ROOT="/dev/sda4"
+GC_LINUX_ROOT="/dev/sdc1"
 
 GC_LINUX_PATH="/lfskernel-$VERSION"
 GC_LINUX_CMD="root=$GC_LINUX_ROOT"
