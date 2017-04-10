@@ -27,6 +27,7 @@ sed '
 	/\/.*\.log$/d
 
 	/\/\..*.config$/d              # copy of a previously used myconfig file
+	/\/\.tpkgs\.conf$/d
 
 	/\/\.subversion$/d
 	/\/\.needs-pkg$/d
