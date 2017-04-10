@@ -1,0 +1,25 @@
+#! /bin/bash
+
+# This is a simple wrapper to let program use either python2 or python3.
+# The choice is made based on the value of the PYTHON_VERSION environment variable.
+#
+# Usage:
+# Given two programs that both use /usr/bin/python as their python interpreter, but they require
+# different python version to work. One could either change the code of those programs (difficult),
+# or change the symlink /usr/bin/python befor calling each of these programs (cumbersome), or use
+# this script in place of /usr/bin/python, than add two wrapper scripts, prog1 and prog2, containing only
+# #!/bin/bash
+# export PYTHON_VERSION=X
+# exec programX
+# Than calling prog1 starts program1 and when it calls /usr/bin/python, the correct python version is
+# selected.
+
+if [ -z "$PYTHON_VERSION" ] ; then
+	PVERSION=2
+else
+	PVERSION="$PYTHON_VERSION"
+fi
+
+PEXE="/usr/bin/python${PVERSION}"
+
+exec "$PEXE" "$@"
