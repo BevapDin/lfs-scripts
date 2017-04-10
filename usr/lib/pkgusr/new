@@ -1,0 +1,11 @@
+#! /bin/bash
+
+# Start lynx on the homepage of this package (taken from $HOME/.url) or
+# start a search based on the name of this package.
+
+if [ -e ~/.url ] ; then
+	exec lynx "$(cat ~/.url)"
+else
+	echo "Needs the file .url in your home dir"
+	google "$USER"
+fi
