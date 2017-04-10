@@ -1,0 +1,18 @@
+#! /bin/bash
+
+usage() {
+ echo "Change-install-user-name"
+ echo "Usage: $0 <oldname> <newname>"
+ exit 1
+}
+
+if [ ! $# == 2 ] ; then
+ usage
+fi
+
+
+new="$2"
+old="$1"
+
+usermod -d /usr/src/$new -m -l $new $old
+groupmod -n $new $old
