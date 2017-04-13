@@ -13,4 +13,6 @@ if ! [ -e "/usr/src/$user" ] ; then
 	exit 1
 fi
 
+echo -en "\033]0;package $user\007"
 exec sudo -H -u "$user" bash -l
+echo -en "\033]0;\007"
