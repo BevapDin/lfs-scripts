@@ -1,0 +1,30 @@
+# This is an example for IceWM's menu definition file.
+#
+# Place your variants in /etc/icewm or in $HOME/.icewm
+# since modifications to this file will be discarded when you
+# (re)install icewm.
+#
+
+# dummy entry to prevent accidentially shuting down the system because the first
+# entry is the default and it would be the shutdown entry or similar.
+prog nothing - true
+separator
+
+prog shutdown /home/thomas/.icewm/icons/shutdown.png sudo /sbin/shutdown -hP now
+prog reboot - sudo /sbin/shutdown -r now
+separator
+
+prog "suspend to disk" - sudo /usr/sbin/suspend-to-disk.sh shutdown
+prog "suspend to disk (ACPI)" - sudo /usr/sbin/suspend-to-disk.sh platform
+prog "suspend to RAM" - sudo /usr/sbin/suspend-to-disk.sh suspend
+separator
+
+prog "Mount crypto devices" - xterm -e sudo /sbin/mount-crypto -a
+prog "Unmount crypto devices" - xterm -e sudo /sbin/umount-crypto
+separator
+
+prog "Lock X" - xscreensaver-command --activate
+prog "Exit screensaver" - xscreensaver-command --exit
+prog "Start screensaver" - bash -c 'xscreensaver &'
+prog "Turn off screen" /home/thomas/.icewm/icons/blank-screen.png xset dpms force off
+separator

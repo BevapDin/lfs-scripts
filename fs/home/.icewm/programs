@@ -1,0 +1,64 @@
+prog "Opera (_jana)" /opt/opera/share/icons/hicolor/16x16/apps/opera-browser.png sudo -u jana /bin/bash -c /opt/bin/opera
+prog "Opera (_playing child)" /opt/opera/share/icons/hicolor/16x16/apps/opera-browser.png sudo -u playing-child /bin/bash -c /opt/bin/opera
+prog "WeeChat" /usr/share/weechat/weechat.png xterm -e weechat
+prog "Firefox (_playing child)" /opt/firefox/browser/icons/mozicon128.png sudo -u playing-child /bin/bash -c /opt/firefox/firefox
+prog "Transmission" /usr/share/transmission/web/images/favicon.png transmission-gtk
+menu "Internet radio" - {
+	prog "Play _Bob Dylan Radio" dylanradio.com.ico xterm -T 'Bob Dylan Radio' -e /home/thomas/bin/play-dylan.sh
+	prog "Play DRadio Wissen" dradio-wissen.ico xterm -T 'DRadio Wissen' -e /home/thomas/bin/play-dradio-wissen.sh
+	prog "Play DRadio" dradio.ico xterm -T 'DRadio' -e /home/thomas/bin/play-dradio.sh
+	prog "Play DRadio Kultur" dradio-kultur.ico xterm -T 'DRadio Kultur' -e /home/thomas/bin/play-dradio-kultur.sh
+	prog "Play Elvis Radio 1" - xterm -T 'Elvis Radio 1' -e mplayer -playlist 'http://cp.eu1.fastcast4u.com:2199/tunein/trtrevor.pls'
+	prog "Play Elvis Radio 2" - xterm -T 'Elvis Radio 2' -e mplayer -playlist 'http://presleyradio.live-streams.nl:8120/listen.pls'
+	prog "_Play web radios" - xterm -T 'Radio' -e /home/thomas/bin/play-webradios.sh
+	prog "Record all internet radios" - /home/thomas/bin/record-internet-radio.sh
+}
+
+menu "Open Office" - {
+	prog 'base' - /opt/openoffice4/program/sbase
+	prog 'calc' - /opt/openoffice4/program/scalc
+	prog 'draw' - /opt/openoffice4/program/sdraw
+	prog 'impress' - /opt/openoffice4/program/simpress
+	prog 'math' - /opt/openoffice4/program/smath
+	prog 'office' - /opt/openoffice4/program/soffice
+	prog 'padmin' - /opt/openoffice4/program/spadmin
+	prog 'writer' - /opt/openoffice4/program/swriter
+}
+
+separator
+menuprogreload 'Ebooks' - 1000 /home/thomas/.icewm/create-ebooks-list.sh
+prog "View rand_om ebook" - view-random-ebook.sh
+separator
+menuprogreload 'Mounts' - 1000 /home/thomas/.icewm/create-mounts-list.sh
+separator
+menuprogreload 'Packages' - 1000 /home/thomas/.icewm/create-packages-list.sh
+separator
+menuprogreload 'Pause programs' - 0 /home/thomas/.icewm/processes.sh SIGSTOP
+menuprogreload 'Continue programs' - 0 /home/thomas/.icewm/processes.sh SIGCONT
+separator
+prog "_Geany" geany.png geany
+prog "AbiWord" abiword.png abiword
+prog "GMPlayer" mplayer.png gmplayer
+prog "mtPaint" /usr/share/pixmaps/mtpaint.png mtpaint
+prog "P_WSafe" /usr/share/pwsafe/cpane.ico bash -c 'pwsafe </dev/null'
+prog "Audacity" audacity.png bash -c 'LD_LIBRARY_PATH=/opt/wxwidgets-3.1.0/lib:/lib:/usr/lib:/opt/lib audacity'
+prog 'Play webcam' - play-webcam
+prog "_alsamixer" alsamixer.png xterm -e alsamixer
+prog "rxvt" - urxvt
+prog "Move _files from jana and playing child" move-files-from-jana-to-thomas.jpeg sudo /root/bin/move-files-from-jana-to-thomas.sh
+menu "Boinc" /var/lib/boinc/projects/setiathome.berkeley.edu/sah_40.png {
+	prog "Start" - boinc --dir /var/lib/boinc --daemon
+	prog "Pause" - pkill -SIGSTOP setiathome
+	prog "Continue" - pkill -SIGCONT setiathome
+}
+
+menu "Cataclysm CDDA" - {
+	prog "cata" - xterm -T 'cata' -e 'cd /var/opt/thomas/cata && bash'
+	prog "cata bugfixes" - xterm -T 'cata bugfixes' -e 'cd /var/opt/thomas/cata-bugfixes && bash'
+	prog "cata cgi" - xterm -T 'cata cgi' -e 'cd /var/opt/thomas/cata-cgi && bash'
+	prog "Cataclysm CDDA" - xterm -T 'Cataclysm CDDA' -e 'cd /var/opt/thomas/cataclysm-dda && bash'
+}
+
+separator
+prog "_root shell" root-shell.png xterm -T '***root***' -bg pink -e su -
+prog "Open Caesar" - xterm -T '***caesar***' -bg red -e sudo /bin/bash -l /root/bin/open-caesar-shell.sh
