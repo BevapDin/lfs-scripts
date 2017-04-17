@@ -1,0 +1,9 @@
+#! /bin/bash
+
+if which sudo 2>/dev/null 1>/dev/null ; then
+	sudo /sbin/ldconfig
+else
+	echo "I'm not root )-: and I have no sudo |-<"
+fi
+
+exit 0
