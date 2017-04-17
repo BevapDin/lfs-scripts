@@ -1,0 +1,8 @@
+#! /bin/bash
+
+package="$1"
+if ! [ -e "/packages/$package" ] ; then
+	echo "$package: not a installed package"
+	exit 1
+fi
+tpkgs2 --version "$package"
