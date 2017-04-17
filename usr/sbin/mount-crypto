@@ -1,0 +1,260 @@
+#! /bin/bash
+
+# The format of the config file is this:
+# (Lines are read using the `read` command of the bash.)
+# type    device    name    options
+
+# `type` can be "loop" or "luks" or "mount"
+# `device` is the thing that will be mounted, e.g. /dev/sdxy
+# `name` is the mount point, e.g. /dev/mapper/xy
+# `options` are options, or a key-file.
+
+# Type "loop" sets up a loop device. Once it has been set up, the device is available
+# under "/dev/loop<name>".
+#   `device` should be a file.
+#   `name` should be a loop device number.
+#   `options` is ignored
+# Type "luks" tries to decrypt the device using the given key-file. If successful,
+# it will be available at /dev/mapper/<name>
+#   `device` should be a block device.
+#   `name` should be the mapped name.
+#   `options` can be a key-file, or empty (which means the key is read from stdin).
+# Type "mount" tries to mount the device.
+#   `device` is the device to mount.
+#   `name` is the mount point. If empty, "/etc/fstab" will be used.
+#   `options` are options: if it contains "fsck", `fsck` will be run before mounting the device.
+
+PATH="$PATH:/usr/sbin:/sbin"
+interactiv=true
+config_file=/etc/crypto-mount.conf
+crypt_timeout=120
+crypt_tries=2
+do_umount=false
+
+usage() {
+    cat - <<EOF
+Mount encrypted volumes.
+Usage: $0 [<options>] {<devices>}
+-c <config-file> ... alternativ config file (default: $config_file).
+-n ... non-interactiv - don't ask user. Skip all entries that would require the user to enter something.
+-u ... unmount. Basically revers the whole process.
+EOF
+    exit 1
+}
+
+is_crypto_mapped() {
+    test -e "$1"
+    return $?
+}
+
+# For testing: simulate mount/umount/cryptsetup and losetup
+if false ; then
+    ASSUME_ALL_EXIST=false
+    mount() {
+        if [ "$#" = 0 ] ; then
+            if $ASSUME_ALL_EXIST ; then
+                /bin/mount
+            fi
+            return 0
+        else
+            echo "** mount $@"
+            return 0
+        fi
+    }
+
+    losetup() {
+        if [ "$1" = '--list' ] ; then
+            if $ASSUME_ALL_EXIST ; then
+                ls -1 /dev/loop?
+            fi
+        else
+            echo "** losetup $@"
+        fi
+        return 0
+    }
+
+    umount() {
+        echo "** umount $@"
+        return 0
+    }
+
+    cryptsetup() {
+        echo "** cryptsetup $@"
+        return 0
+    }
+    if ! $ASSUME_ALL_EXIST ; then
+        unset is_crypto_mapped
+        is_crypto_mapped() {
+            return 1
+        }
+    fi
+fi
+
+do_mount() {
+    local device="${1?missing device parameter}"
+    local mount_point="${2?missing mount point parameter}"
+    local options="$3"
+
+    if [ "${device/\//}" = "$device" ] ; then
+        device="/dev/mapper/$device"
+    fi
+
+    if mount | grep -qF "$device" ; then
+        if $do_umount ; then
+            umount "$device"
+            return $?
+        fi
+
+        echo "$0: $device is already mounted."
+        return 0
+    fi
+
+    if $do_umount ; then
+        return 0
+    fi
+
+    case "$options" in
+    *fsck*)
+        fsck -C -r -T "$device"
+        ;;
+    esac
+
+    if [ -z "$mount_point" ] ; then
+        mount -v "$device"
+    else
+        mount -v "$device" "$mount_point"
+    fi
+}
+
+do_loop() {
+    local file="${1?missing file parameter}"
+    local loop_number="${2?missing loop number parameter}"
+    local loop_device="/dev/loop$loop_number"
+
+    if losetup --list | grep -qF "$file" ; then
+        if $do_umount ; then
+            losetup --detach "$loop_device"
+            return $?
+        fi
+
+        echo "$0: $file is already looped."
+        return 0
+    fi
+
+    if $do_umount ; then
+        return 0
+    fi
+
+    losetup -v "$loop_device" "$file"
+}
+
+do_luks() {
+    local device="${1?missing device parameter}"
+    local name="${2?missing name parameter}"
+    local keyfile="${3?missing keyfile parameter}"
+    local mapped_path="/dev/mapper/$name"
+
+    if $do_umount ; then
+        if ! [ -e "$mapped_path" ] ; then
+            return 0
+        fi
+        cryptsetup luksClose "$name"
+        return $?
+    fi
+
+    if is_crypto_mapped "$mapped_path" ; then
+        echo "$0: $device is already luks'ed."
+        return 0
+    fi
+
+    if [ "$keyfile" = '-' ] ; then
+        if ! "$interactiv" ; then
+            echo "$0: skipping $device because it requires user-input, which is disabled."
+            return 0 # yes, it's fine, it's requested
+        fi
+        cryptsetup -t "$crypt_timeout" -T "$crypt_tries" luksOpen "$device" "$name"
+        return $?
+    fi
+
+    if ! [ -e "$keyfile" ] ; then
+        echo "$0: error: key file for $device does not exists. Skipped." 1>&2
+        return 1
+    fi
+
+    # cryptsetup handles this a tiny bit different, it's quite possible that only
+    # one of those two calls succeeds.
+    cryptsetup luksOpen --key-file "$keyfile" "$device" "$name" || \
+        cryptsetup luksOpen --key-file - "$device" "$name" <"$keyfile"
+}
+
+while [ $# -gt 0 ] ; do
+    case "$1" in
+    -n)
+        interactiv=false
+        shift 1
+        ;;
+    -c)
+        config_file="$2"
+        shift 2
+        ;;
+    -u)
+        do_umount=true
+        shift 1
+        ;;
+    --help|-\?|-h)
+        usage
+        ;;
+    -*)
+        echo "$0: error: unknown option $1" 1>&2
+        exit 1
+        ;;
+    *)
+        break
+        ;;
+    esac
+done
+
+echo "$0: called at $(date) for $config_file"
+
+if [ ! -r "$config_file" ] ; then
+    echo "$0: error: configuration file '$config_file' not readable." 1>&2
+    exit 1
+fi
+
+read_config() {
+    if "$do_umount" ; then
+        tac <"$config_file"
+    else
+        cat "$config_file"
+    fi
+}
+
+exec 4<&0
+
+read_config | while read system device name keyfile rest ; do
+    case "$system" in
+    \#*|"")
+        continue
+        ;;
+    esac
+    # TODO: check whether we actually should handle this device
+    
+    case "$system" in
+    'luks')
+        do_luks "$device" "$name" "$keyfile" <&4
+        continue
+        ;;
+    'loop')
+        do_loop "$device" "$name" "$keyfile" <&4
+        continue
+        ;;
+    'mount')
+        do_mount "$device" "$name" "$keyfile" <&4
+        continue
+        ;;
+    *)
+        echo "$0: unknown device type: $system" 1>&2
+        continue
+        ;;
+    esac
+done
