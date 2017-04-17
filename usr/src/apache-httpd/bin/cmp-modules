@@ -1,0 +1,160 @@
+#! /bin/bash
+
+# This script checks that every modules in the
+# modules folder is enabled in the apache-configuration
+# and that every enabled module from the config
+# really exist.
+
+# It prints "== ext.so" for every extension that
+# is enabled and that exists.
+# ">> ext.so" is printed for not enabled but existing
+# and "<< ext.so" for enabled but not existing 
+# extension.
+# And it print the Number of enabled and of existing
+# extensions.
+
+# The location of the config-file.
+ini=/etc/apache/modules.conf
+
+repair=no
+quit=no
+clean=no
+
+usage() {
+ echo "Usage: $0 {[options]} "
+ echo "-i <conf> ... location of the config file [$ini]"
+ echo "-q ... quiet (don't print modules which are enabled and exist)"
+ echo "-r ... repair the config (extension which were repaired get an ! at the output)"
+ echo "-c ... clean the config up a little."
+ exit 1
+}
+
+while [ $# -gt 0 ] ; do
+ p="$1"
+ shift 1
+ case "$p" in
+  -h)
+   usage
+   ;;
+  --help)
+   usage
+   ;;
+  -\?)
+   usage
+   ;;
+  -c)
+   clean=yes
+   ;;
+  -q)
+   quit=yes
+   ;;
+  -r)
+   repair=yes
+   ;;
+  -i)
+   ini="$1"
+   shift 1
+   ;;
+  *)
+   usage
+   ;;
+ esac
+done
+
+libdir="/usr/lib/apache"
+
+backuped=no
+
+mkbackup() {
+ if [ $backuped == yes ] ; then
+  return 0
+ fi
+ echo "Backing up $ini"
+ if /bin/cp -fv "$ini" "$ini.bak" ; then
+  backuped=yes
+  return 0
+ fi
+ if /bin/cp -fv "$ini" "$HOME" ; then
+  backuped=yes
+  return 0
+ fi
+ return 1
+}
+
+addextension() {
+ mkbackup || return 1
+ ext_name=`basename "$1" .so`
+ instr="LoadModule $ext_name lib/apache/$1"
+ sed -i "s/^# --- new modules ---$/\0\n$instr/" "$ini"
+}
+
+cleanforextension() {
+ if [ $clean == no ] ; then
+  return 1
+ fi
+# $2 ... Extension enabled?
+ mkbackup || return 1
+ if [ $2 == true ] ; then
+  sed -i "s/^# *(LoadModule .* lib\/apache\/$1)$/\1/" "$ini"
+ else
+  sed -i "s/^LoadModule .* lib\/apache\/$1$/#\0/" "$ini"
+ fi
+ return 0
+}
+
+removeextension() {
+ mkbackup || return 1
+ sed -i "s/^LoadModule .* lib\/apache\/$1)$/#\0/" "$ini"
+}
+
+find "$libdir" -iname '*.so' -print | (
+ while read file ; do
+  ext=`basename "$file"`
+  if grep -q "^[^#]*lib\/apache\/$ext$" "$ini"; then
+   if [ $quit == no ] ; then
+    echo "== $ext"
+    cleanforextension "$ext" true
+   fi
+   continue
+  fi
+  # not enabled, but existing
+  if [ $repair == yes ] ; then
+   if addextension "$ext" ; then
+    echo "== $ext !"
+    cleanforextension "$ext" true
+   else
+    echo ">> $ext !"
+   fi
+  else
+   echo ">> $ext"
+  fi
+ done
+)
+grep -Ee "^LoadModule .* lib\/apache\/.*\.so$" "$ini" | (
+ while read c ; do
+  ext=`echo -n "$c" | grep -o " [/A-Za-z0-9_.-]*\.so"`
+  ext=`basename "$ext"`
+  if [ ! -e "$libdir/$ext" ] ; then
+   echo "<< $ext"
+   if [ $repair == yes ] ; then
+    if removeextension "$ext" ; then
+     echo "== $ext !"
+     cleanforextension "$ext" true
+    else
+     echo "<< $ext !"
+    fi
+   else
+    echo "<< $ext"
+   fi
+  fi
+ done
+)
+n1=`find "$libdir" -type f -name '*.so' -print | wc -l`
+n2=`grep "^LoadModule " "$ini" | wc -l`
+echo "$n1 -- $n2"
+
+if [ $n1 == $n2 ] ; then
+ exit 0
+else
+ exit 1
+fi

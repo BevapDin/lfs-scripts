@@ -1,0 +1,9 @@
+#! /bin/bash
+
+# Upgrade all pecl and pear packages. Usefull for cron jobs.
+
+/usr/bin/pecl upgrade-all >> ~/pecl-upgrade.log
+/usr/bin/pear upgrade-all >> ~/pear-upgrade.log
+
+# See log files for any errors
+exit 0

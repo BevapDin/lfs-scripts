@@ -56,5 +56,9 @@ gather_from_dir() {
 find /usr/src -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | \
 while read pkg ; do
 	gather_file "$pkg" ".url" || exit $?
+	gather_file "$pkg" "notes" || exit $?
+	gather_from_dir "$pkg" "bin" || exit $?
 done
+# Special, should be Incorporated into a patch, maybe. 
+gather_file "lua" "lua.pc" || exit $?
 
