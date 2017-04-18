@@ -1,0 +1,93 @@
+--- pkg-install.c	2011-10-18 07:18:02.000000000 +0200
++++ old-install.c	2011-04-12 12:07:43.000000000 +0200
+@@ -109,41 +109,6 @@
+ /* Program used to strip binaries, "strip" is default */
+ static char const *strip_program = "strip";
+ 
++#define DEFAULT_WARN_FILE "XX-PKG-INSTALL-WARNING.txt"
++void pkg_warn(const char *msg, int n_files, char **file, const char *target_directory) {
++	static FILE *warn_file = NULL;
++	if(warn_file == NULL) {
++		const char *h = getenv("HOME");
++		if(h == NULL) {
++			fprintf(stderr, "Could not get $HOME using pkg warning file in current dir\n");
++			warn_file = fopen(DEFAULT_WARN_FILE, "ab");
++			if(warn_file == NULL) {
++				fprintf(stderr, "Could not open pkg warning file: %s\n", DEFAULT_WARN_FILE);
++				warn_file = stderr;
++			}
++		} else {
++			const size_t l1 = strlen(h);
++			const size_t l2 = (sizeof(DEFAULT_WARN_FILE) / sizeof(DEFAULT_WARN_FILE[0]));
++			char *buffer = (char*) malloc(l1 + l2 + 2);
++			memcpy(buffer, h, l1);
++			memcpy(buffer + l1, "/", 1);
++			memcpy(buffer + l1 + 1, DEFAULT_WARN_FILE, l2);
++			memcpy(buffer + l1 + 1 + l2, "", 1);
++			warn_file = fopen(buffer, "ab");
++			if(warn_file == NULL) {
++				fprintf(stderr, "Could not open pkg warning file: %s\n", buffer);
++				warn_file = stderr;
++			}
++			free(buffer);
++		}
++	}
++	fprintf(warn_file, "*** %s into %s for:\n", msg, target_directory);
++	for(int i = 0; i < n_files; i++) {
++		fprintf(warn_file, "*** %s\n", file[i]);
++	}
++}
++#define PKG_WARN(msg) pkg_warn(msg, n_files, file, target_directory)
++
+ /* For long options that have no equivalent short option, use a
+    non-character as a pseudo short option, starting with CHAR_MAX + 1.  */
+ enum
+@@ -446,16 +411,6 @@
+ static int
+ process_dir (char *dir, struct savewd *wd, void *options)
+ {
++
++	struct stat st;
++	if(stat(dir, &st) == 0) {
++		if(S_ISDIR(st.st_mode)) {
++			if(st.st_uid != geteuid()) {
++				pkg_warn("Won't change an existing folder owned by another user", 0, NULL, dir);
++				return 0;
++			}
++		}
++	}
+   return (make_dir_parents (dir, wd,
+                             make_ancestor, options,
+                             dir_mode, announce_mkdir,
+@@ -1003,31 +956,6 @@
+ 
+   get_ids ();
+ 
++	if(owner_id == (uid_t) -1) {
++	} else if(owner_id == (uid_t) 0) {
++		owner_name = NULL;
++		owner_id = (uid_t) -1;
++		PKG_WARN("Ignoring -o root");
++	} else if(owner_id == geteuid()) {
++		owner_name = NULL;
++		owner_id = (uid_t) -1;
++		PKG_WARN("Ignoring -o <current user>");
++	}
++	if(group_id == (gid_t) -1) {
++	} else if(group_id == (gid_t) 0) {
++		group_name = NULL;
++		group_id = (gid_t) -1;
++		PKG_WARN("Ignoring -g root");
++	} else if(group_id == getegid()) {
++		group_name = NULL;
++		group_id = (gid_t) -1;
++		PKG_WARN("Ignoring -g <current group>");
++	}
++	if(mode & S_ISUID) {
++		mode &= ~S_ISUID;
++		PKG_WARN("Ignoring chmod +s");
++	}
++
+   if (dir_arg)
+     exit_status = savewd_process_files (n_files, file, process_dir, &x);
+   else

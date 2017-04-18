@@ -3,6 +3,11 @@
 # You may do everything with this code except misrepresent its origin.
 # PROVIDED `AS IS' WITH ABSOLUTELY NO WARRANTY OF ANY KIND!
 
+# Extension: use our own patched install program if available
+if [ -e "/usr/lib/pkgusr/pkg-install" ] ; then
+  exec /usr/lib/pkgusr/exec /usr/lib/pkgusr/pkg-install "$@"
+fi
+
 manpagesowner=man-pages
 localedir=/usr/share/locale
 cmdline="$@"

@@ -1,0 +1,90 @@
+--- src/install.c.old	2015-11-02 02:32:51.988051911 +0100
++++ src/install.c	2015-11-02 02:41:35.384363167 +0100
+@@ -139,6 +139,41 @@
+   {NULL, 0, NULL, 0}
+ };
+ 
++#define DEFAULT_WARN_FILE "XX-PKG-INSTALL-WARNING.txt"
++void pkg_warn(const char *msg, int n_files, char **file, const char *target_directory) {
++    static FILE *warn_file = NULL;
++    if(warn_file == NULL) {
++        const char *h = getenv("HOME");
++        if(h == NULL) {
++            fprintf(stderr, "Could not get $HOME using pkg warning file in current dir\n");
++            warn_file = fopen(DEFAULT_WARN_FILE, "ab");
++            if(warn_file == NULL) {
++                fprintf(stderr, "Could not open pkg warning file: %s\n", DEFAULT_WARN_FILE);
++                warn_file = stderr;
++            }
++        } else {
++            const size_t l1 = strlen(h);
++            const size_t l2 = (sizeof(DEFAULT_WARN_FILE) / sizeof(DEFAULT_WARN_FILE[0]));
++            char *buffer = (char*) malloc(l1 + l2 + 2);
++            memcpy(buffer, h, l1);
++            memcpy(buffer + l1, "/", 1);
++            memcpy(buffer + l1 + 1, DEFAULT_WARN_FILE, l2);
++            memcpy(buffer + l1 + 1 + l2, "", 1);
++            warn_file = fopen(buffer, "ab");
++            if(warn_file == NULL) {
++                fprintf(stderr, "Could not open pkg warning file: %s\n", buffer);
++                warn_file = stderr;
++            }
++            free(buffer);
++        }
++    }
++    fprintf(warn_file, "*** %s into %s for:\n", msg, target_directory);
++    for(int i = 0; i < n_files; i++) {
++        fprintf(warn_file, "*** %s\n", file[i]);
++    }
++}
++#define PKG_WARN(msg) pkg_warn(msg, n_files, file, target_directory)
++
+ /* Compare content of opened files using file descriptors A_FD and B_FD. Return
+    true if files are equal. */
+ static bool
+@@ -433,6 +468,12 @@
+ static int
+ process_dir (char *dir, struct savewd *wd, void *options)
+ {
++    struct stat st;
++    if(stat(dir, &st) == 0 && S_ISDIR(st.st_mode) && st.st_uid != geteuid()) {
++        pkg_warn("Won't change an existing folder owned by another user", 0, NULL, dir);
++        return 0;
++    }
++
+   return (make_dir_parents (dir, wd,
+                             make_ancestor, options,
+                             dir_mode, announce_mkdir,
+@@ -1016,6 +1057,32 @@
+ 
+   get_ids ();
+ 
++    if(owner_id == (uid_t) -1) {
++        /* Nothing, this is fine */
++    } else if(owner_id == (uid_t) 0) {
++        owner_name = NULL;
++        owner_id = (uid_t) -1;
++        PKG_WARN("Ignoring -o root");
++    } else if(owner_id == geteuid()) {
++        owner_name = NULL;
++        owner_id = (uid_t) -1;
++        PKG_WARN("Ignoring -o <current user>");
++    }
++    if(group_id == (gid_t) -1) {
++    } else if(group_id == (gid_t) 0) {
++        group_name = NULL;
++        group_id = (gid_t) -1;
++        PKG_WARN("Ignoring -g root");
++    } else if(group_id == getegid()) {
++        group_name = NULL;
++        group_id = (gid_t) -1;
++        PKG_WARN("Ignoring -g <current group>");
++    }
++    if(mode & S_ISUID) {
++        mode &= ~S_ISUID;
++        PKG_WARN("Ignoring chmod +s");
++    }
++
+   if (dir_arg)
+     exit_status = savewd_process_files (n_files, file, process_dir, &x);
+   else
