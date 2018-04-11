@@ -12,6 +12,8 @@
 
 echo "/etc/profile" 1>&2
 
+export LANG=de_DE.utf8
+
 # Functions to help us manage paths.  Second argument is the name of the
 # path variable to be modified (default: PATH)
 pathremove () {
