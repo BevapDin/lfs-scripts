@@ -1,4 +1,5 @@
 /packages/sudo/Current/usr/bin/sudo
 /packages/shadow/Current/bin/su
 /packages/util-linux/Current/bin/mount
+/packages/util-linux/Current/bin/umount
 /packages/xorg-server/Current/usr/bin/Xorg
