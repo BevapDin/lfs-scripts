@@ -3,6 +3,7 @@ sed '
 	/^$/d;             # empty lines
  	/^[a-z]* /d;       # pseudo file systems
 	/ swap /d;
+	/[ ,]bind[ ,]/d;   # ignore bind requests (not mount requests)
 	/ \/ /d;
 	' /etc/fstab | \
 	while read dev mp blob ; do
@@ -17,5 +18,4 @@ sed '
 		else
 			echo "prog \"Mount $mp\" - mount \"$dev\""
 		fi
-	done | \
-	sort
+	done

@@ -1,17 +1,22 @@
 prog "Cataclysm DDA" /home/thomas/Cataclysm-DDA/data/cataicon.ico urxvt -title Cataclysm -icon /home/thomas/Cataclysm-DDA/data/cataicon.ico +sb -e bash -c "icesh -class URxvt setState Maximized Maximized ; cd /home/thomas/Cataclysm-DDA && ./release-cataclysm"
-prog 'Dwarf Fortress (40.20)' - bash -c 'cd $HOME/df_linux-40.24 && ./df'
-prog 'Dwarf Fortress (43.04)' - bash -c 'cd $HOME/df_43_04_linux && ./df'
+menu "Dwarf Fortress" - {
+	prog "40.20" - bash -c 'cd $HOME/df_linux-40.24 && ./df'
+	prog "43.04" - bash -c 'cd $HOME/df_43_04_linux && ./df'
+	prog "44.02" - bash -c 'cd /var/opt/thomas/df_44_02 && ./df'
+}
 prog "UFO: AI" /usr/share/ufoai/ufo.png xterm -e ufo
 prog "angband" /usr/share/angband/xtra/icon/att-16.png angband
 prog "Freeciv" /usr/share/freeciv/misc/civicon.png freeciv-gtk2
 prog "GSkat" /usr/share/gskat/icons/gskat32x32.png gskat
 prog "Hyperrogue" hyper.png bash -c "cd /usr/src/hyperrogue/hyperrogue-35 && ./hyper"
 prog "Naev" /usr/share/naev/logo16.png naev
-menu "Simutrans" /usr/src/simutrans/cur/simutrans.ico {
-	prog "pak64" - bash -c 'cd /usr/src/simutrans/cur/simutrans && ../build/default/sim -fullscreen -objects ../a/simutrans/pak -use_workdir'
-	prog "pak64 (japan)" - bash -c 'cd /usr/src/simutrans/cur/simutrans && ../build/default/sim -fullscreen -objects ../pak.japan -use_workdir'
-	prog "pak64 (german)" - bash -c 'cd /usr/src/simutrans/cur/simutrans && ../build/default/sim -fullscreen -objects ../pak64.german -use_workdir'
-	prog "pak128" - bash -c 'cd /usr/src/simutrans/cur/simutrans && ../build/default/sim -fullscreen -objects ../pak128 -use_workdir'
-	prog "pak128 (german)" - bash -c 'cd /usr/src/simutrans/cur/simutrans && ../build/default/sim -fullscreen -objects ../PAK128.german -use_workdir'
-	prog "pak128 (britain)" - bash -c 'cd /usr/src/simutrans/cur/simutrans && ../build/default/sim -fullscreen -objects ../pak128.Britain -use_workdir'
+menu "Simutrans" /usr/src/simutrans/simutrans/simutrans.ico {
+	prog "pak64" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../a/simutrans/pak -use_workdir'
+	prog "pak" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../pak -use_workdir'
+	prog "pak64 (japan)" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../pak.japan -use_workdir'
+	prog "pak64 (german)" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../pak64.german -use_workdir'
+	prog "pak128" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../pak128 -use_workdir'
+	prog "pak128 (german)" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../PAK128.german -use_workdir'
+	prog "pak128 (britain)" - bash -c 'cd /usr/src/simutrans/simutrans/simutrans && ../build/default/sim -fullscreen -objects ../pak128.Britain -use_workdir'
 }
+prog widelands - bash -c 'cd /usr/src/widelands/widelands-build19-src && ./widelands'

@@ -24,5 +24,8 @@ prog "Unmount crypto devices" - xterm -e sudo /sbin/umount-crypto
 separator
 
 prog "Lock X" - xscreensaver-command --activate
+prog "Exit screensaver" - xscreensaver-command --exit
+prog "Start screensaver" - bash -c 'xscreensaver &'
 prog "Turn off screen" /home/thomas/.icewm/icons/blank-screen.png xset dpms force off
 separator
+xscreensaver-command

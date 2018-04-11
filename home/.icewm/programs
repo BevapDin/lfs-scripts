@@ -9,6 +9,19 @@ menu "Internet radio" - {
 	prog "Play DRadio" dradio.ico xterm -T 'DRadio' -e /home/thomas/bin/play-dradio.sh
 	prog "Play DRadio Kultur" dradio-kultur.ico xterm -T 'DRadio Kultur' -e /home/thomas/bin/play-dradio-kultur.sh
 	prog "_Play web radios" - /home/thomas/bin/play-webradios.sh
+	prog "Play Elvis Radio 1" - xterm -T 'Elvis Radio 1' -e mplayer -playlist 'http://cp.eu1.fastcast4u.com:2199/tunein/trtrevor.pls'
+	prog "Play Elvis Radio 2" - xterm -T 'Elvis Radio 2' -e mplayer -playlist 'http://presleyradio.live-streams.nl:8120/listen.pls'
+}
+
+menu "Open Office" - {
+	prog 'base' - /opt/openoffice4/program/sbase
+	prog 'calc' - /opt/openoffice4/program/scalc
+	prog 'draw' - /opt/openoffice4/program/sdraw
+	prog 'impress' - /opt/openoffice4/program/simpress
+	prog 'math' - /opt/openoffice4/program/smath
+	prog 'office' - /opt/openoffice4/program/soffice
+	prog 'padmin' - /opt/openoffice4/program/spadmin
+	prog 'writer' - /opt/openoffice4/program/swriter
 }
 
 separator
@@ -28,6 +41,7 @@ prog "GMPlayer" mplayer.png gmplayer
 prog "mtPaint" /usr/share/pixmaps/mtpaint.png mtpaint
 prog "P_WSafe" /usr/share/pwsafe/cpane.ico bash -c 'pwsafe </dev/null'
 prog "Audacity" audacity.png bash -c 'LD_LIBRARY_PATH=/opt/wxwidgets-3.1.0/lib:/lib:/usr/lib:/opt/lib audacity'
+prog 'Play webcam' - play-webcam
 prog "_alsamixer" alsamixer.png xterm -e alsamixer
 prog "rxvt" - urxvt
 prog "Move _files from jana and playing child" move-files-from-jana-to-thomas.jpeg sudo /root/bin/move-files-from-jana-to-thomas.sh
@@ -37,17 +51,14 @@ menu "Boinc" /var/lib/boinc/projects/setiathome.berkeley.edu/sah_40.png {
 	prog "Continue" - pkill -SIGCONT setiathome
 }
 
+menu "Cataclysm CDDA" - {
+	prog "cata" - xterm -T 'cata' -e 'cd /var/opt/thomas/cata && bash'
+	prog "cata bugfixes" - xterm -T 'cata bugfixes' -e 'cd /var/opt/thomas/cata-bugfixes && bash'
+	prog "cata cgi" - xterm -T 'cata cgi' -e 'cd /var/opt/thomas/cata-cgi && bash'
+	prog "Cataclysm CDDA" - xterm -T 'Cataclysm CDDA' -e 'cd /var/opt/thomas/cataclysm-dda && bash'
+}
+
 separator
 prog "_root shell" root-shell.png xterm -T '***root***' -bg pink -e su -
 prog "Open Caesar" - xterm -T '***caesar***' -bg red -e sudo /bin/bash -l /root/bin/open-caesar-shell.sh
 
-#prog "base" - /opt/openoffice/programs/openoffice4 -base %U
-#calc.desktop:Exec=openoffice4 -calc %U
-#draw.desktop:Exec=openoffice4 -draw %U
-#impress.desktop:Exec=openoffice4 -impress %U
-#javafilter.desktop:Exec=openoffice4 -writer %U
-#math.desktop:Exec=openoffice4 -math %U
-#printeradmin.desktop:Exec=openoffice4-printeradmin
-#qstart.desktop:Exec=openoffice4 -quickstart -nologo -nodefault
-#startcenter.desktop:Exec=openoffice4 %U
-#writer.desktop:Exec=openoffice4 -writer %U
