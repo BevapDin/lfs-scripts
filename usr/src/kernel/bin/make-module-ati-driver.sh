@@ -5,3 +5,4 @@ if [ -e  /usr/src/ati-driver/bin/make-module.sh ] ; then
 else
 	exit 0
 fi
+
