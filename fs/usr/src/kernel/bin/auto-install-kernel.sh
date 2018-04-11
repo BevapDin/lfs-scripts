@@ -5,7 +5,7 @@ KVERSION="${1?Missing kernel version}"
 KSOURCE_TAR="linux-$KVERSION.tar.xz"
 KSOURCE_DIR="linux-$KVERSION"
 
-LOCAL_VERSION_SUFFIX="-td"
+LOCAL_VERSION_SUFFIX="-jana"
 
 home="$HOME"
 
@@ -96,7 +96,8 @@ downloadkernel() {
 #	local mbv="${version%.*}"
 #	local url="ftp://ftp.kernel.org/pub/linux/kernel/v${mbv}/$KSOURCE_TAR"
 	local url="https://www.kernel.org/pub/linux/kernel/v4.x/$KSOURCE_TAR"
-	if wget -O "$KSOURCE_TAR" "$url" ; then
+#	if wget -d -O "$KSOURCE_TAR" "$url" ; then
+	if curl -o "$KSOURCE_TAR" "$url" ; then
 		return 0
 	else
 		rm "$KSOURCE_TAR" 2>/dev/null
