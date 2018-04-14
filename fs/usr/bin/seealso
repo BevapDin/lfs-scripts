@@ -1,0 +1,485 @@
+#!/bin/bash
+#
+# Seealso - A section and subsection viewer for Unix manual pages.
+# Copyright (c) 2001-2004, Francesco Cosoleto (cosoleto@free.fr)
+#
+# http://cosoleto.free.fr/ral/seealso/
+#
+# You may distribute under the terms of the GNU General Public
+# License as specified in the COPYING file
+
+#
+#
+# Some man versions requires '-l' option to allow specifing manual
+# pages with path. Seealso should be able of opening those files.
+#
+# manexe="man -l"
+manexe="man"
+
+#################################################################
+
+man="man" ; manall="-a" ; manwhere="-w" ; mansect="-S" ; manlocale="-L" ; manpager="-P"
+unset MANSECT
+mansect_pattern="[1-9nlpo]"
+
+VER=1.3.6 ; PROGRAM="${0##*/}"
+
+manpage_generated=${TMPDIR:=/tmp}/.$PROGRAM$$/seealso
+seealso_output=$TMPDIR/.$PROGRAM$$/output
+
+nosubsection=1
+
+ERROR="No result for" ; NO_SEEALSO="No section" ; REFERENCE="See"
+BAD_OPT="unrecognized option" ; BAD_ARG="option requires an argument"
+USAGE="Usage: "$PROGRAM" [options] [section] NAME [#sectname | ##subsectname]..."
+USAGE2='Try '\`$PROGRAM\'" --help for more information."
+
+case $LANG in 
+it*)
+    SEEALSO_RE_locale="|VEDERE ANCHE"
+    FILES_RE_locale="|FILE"
+    SYNOPSIS_RE_locale="|SINTASSI"
+    CONFORM_RE_locale="|CONFORME A"
+    ENV_RE_locale="|VARIABILI D(I |')AMBIENTE|AMBIENTE"
+
+    ERROR="Nessun risultato per" ; NO_SEEALSO="Sezione assente" ; REFERENCE="Vedi"
+    BAD_OPT="Opzione non riconosciuta" ; BAD_ARG="L'opzione richiede un argomento"
+    USAGE="Uso: "$PROGRAM" [opzioni] [sezione] NOME [#nomesez | ##nomesottosez]..."
+    USAGE2='Usare '\`$PROGRAM\'" --help per ulteriori informazioni."
+;;
+fr*)
+    SEEALSO_RE_locale="|VOIR AUSSI"
+    SYNOPSIS_RE_locale="|SYNTAXE"
+    ENV_RE_locale="|ENVIRONNEMENT"
+;;
+nl*) SEEALSO_RE_locale="|ZIE OOK"
+;;
+de*) SEEALSO_RE_locale="|SIEHE AUCH"
+;;
+el*) SEEALSO_RE_locale="|ÂËÅÐÅ ÅÐÉÓÇÓ"
+;;
+pt*) SEEALSO_RE_locale="|VEJA TAMBÉM"
+;;
+pl*) SEEALSO_RE_locale="|ZOBACZ TE¯"
+;;
+fi*) SEEALSO_RE_locale="|KATSO MYÖS"
+;;
+cs*) SEEALSO_RE_locale="|VIZ TÉ®"
+;;
+es*) SEEALSO_RE_locale="|VEA TAMBIÉN|VÉASE TAMBIÉN"
+;;
+sl*) SEEALSO_RE_locale="|GLEJTE TUDI"
+;;
+da*) SEEALSO_RE_locale="|SE OGSÅ"
+;;
+ja*) SEEALSO_RE_locale="|´ØÏ¢¹àÌÜ"
+;;
+bg*) SEEALSO_RE_locale="|ÂÈÆÒÅ ÑÚÙÎ"
+;;
+ro*) SEEALSO_RE_locale="|VEZI ªI"
+;;
+esac
+
+case $PROGRAM in
+    retur* | see_retur*)
+	    BEGIN_RE="^\.S[HS] \"?(RETURN VALUES?|RETURNS?|RETURN CODES?|EXIT CODES?|EXIT STATUS|DIAGNOSTICS$RETURN_RE_locale)\"?"
+	    END_RE="^\.S[HS]"
+	    ;;
+    file* | see_filer*)
+	    BEGIN_RE="^\.SH \"?(FILES$FILES_RE_locale)\"?"
+	    END_RE="^\.SH"
+	    ;;
+    conf* | see_conf*)
+	    BEGIN_RE="^\.SH \"?(CONFORMING TO|CONFORMS TO|CONFORMANCE$CONFORM_RE_locale)\"?"
+	    END_RE="^\.SH"
+	    ;;
+    synopsis* | see_synopsis*)
+	    BEGIN_RE="^\.SH \"?(SYNOPS(I|Y)S|SYNTAX|C SPECIFICATION$SYNOPSIS_RE_locale)\"?"
+	    END_RE="^\.SH"
+	    ;;
+    envir* | see_envir*)
+	    BEGIN_RE="^\.SH \"?(ENVIRONMENT|ENVIRONMENT.* VARIABLES$ENV_RE_locale)\"?"
+	    END_RE="^\.SH"
+	    ;;
+    mansect)
+	    copy_of_manall=$manall
+	    unset manall
+	    ;;
+    *)
+#	    enable_print_header=1
+	    BEGIN_RE="^\.SH \"?(SEE\\\? ALSO$SEEALSO_RE_locale)\"?"
+	    END_RE="^\.SH"
+	    ;;
+esac	
+
+enable_quiet=0
+
+Error () {
+	[ "$enable_quiet" = 0 ] && echo -e $@ >/dev/stderr
+}
+
+help () {
+    local d1=disable d2
+    [ "$PROGRAM" = "mansect" ] && d1='enable' && d2=' (mansect)'
+    echo "$USAGE
+A section viewer for Unix manual pages.
+
+  -a               $d1 find of all matching manual pages$d2
+  -s list          use colon separated section list
+  -L locale        define the locale for this particular search
+  -P pager         use program 'pager' to display output
+
+  -l               list sections
+  -n section       enter manually section name to print
+  -N subsection    enter manually subsection name to print
+  -g               use global manpath search
+  -q               suppress $PROGRAM messages
+
+  -h, --help       display this help and exit
+  -v, --version    output version information and exit
+ 
+Report bugs to <cosoleto@free.fr>."
+    exit 0
+}
+
+version () {
+    echo "seealso $VER"
+    exit 0
+}
+
+usage () {
+    Error $USAGE "\n"$USAGE2
+    exit 2
+}
+
+while getopts :eS:s:gn:N:L:lP:p:aqhvV opt ; do
+
+    case $1 in
+        --help) help ;;
+        --version) version ;;
+    esac
+
+    case $opt in
+    h) help ;;
+    v | V) version ;;
+    e) enable_print_header=1 ;;
+    q) enable_quiet=1 ;;
+    g) unset MANPATH ; MANPATH=`manpath -g 2>/dev/null` ;;
+    n) nosubsection=1 ; OPTION_LINE_PATTERN="$OPTARG" ;;
+    N) nosubsection=0 ; OPTION_LINE_PATTERN="$OPTARG" ;;
+    l) list_section_only=yes ;;
+    L) manopt=$manopt" "$manlocale" "$OPTARG ;;
+    S | s) manopt=$manopt" "$mansect" ""$OPTARG" ;;
+    P | p) manexe=$manexe" "$manpager" ""$OPTARG" ;;
+    a) unset manall ; [ "$PROGRAM" = "mansect" ] && manall=$copy_of_manall ;;
+    :) Error "$BAD_ARG --" $OPTARG ; usage ;;
+    ?) Error "$BAD_OPT --" $OPTARG ; usage ;;
+    esac
+done
+
+shift $((OPTIND-1))
+
+[ -z "$1" ] && usage
+
+man="$man $manall $manwhere $manopt"
+
+trap seealso_exit HUP INT TERM ; mkdir $TMPDIR/.$PROGRAM$$/
+
+seealso_exit () {
+	rm -fr $TMPDIR/.$PROGRAM$$
+	exit $exit_status
+}
+
+list_section () {
+
+# \fIstring\fP\^
+
+    {	if [ "$nosubsection" = 0 ]
+	then
+	    sed -n -e "s/^\.\(S[Ss]\|I[Xx] Subsection\) //p" "$1"
+        else
+		awk '
+/^\.S[hH] / {
+
+	if (getline tmp <= 0) {
+		exit
+	}
+
+	if (tmp !~ /^\.IX Subsection/) {
+		sub(/^\.S[hH] /,"");
+		printf ($0"\n");
+	}
+}
+		' "$1"
+	fi
+    } >>"$seealso_output"
+}
+
+pattern_selection () {
+	if [ "$nosubsection" = 0 ]
+	then
+    	    BEGIN_RE="^\.(SS|IX Subsection) \"?($1)\"?"
+	    END_RE="^\.S[SH]"
+	else
+    	    BEGIN_RE="^\.SH \"?($1)\"?"
+	    END_RE="^\.SH"
+        fi
+}
+
+get_section () {
+
+    local BEGIN_RE=$BEGIN_RE END_RE=$END_RE
+
+    if [ "$COMMAND_LINE_PATTERN" ]
+    then
+	pattern_selection "$COMMAND_LINE_PATTERN"
+	MAN_HEAD="_$COMMAND_LINE_PATTERN"
+    else
+	if [ "$OPTION_LINE_PATTERN" ]
+	then
+    	    pattern_selection "$OPTION_LINE_PATTERN"
+	    MAN_HEAD="_$OPTION_LINE_PATTERN"
+	fi
+    fi
+
+# FIXME: if /^\.sp -?[0-9]*.?[lnv]?/ in end of file or selection
+# then delete row
+	awk -v print_header=$enable_print_header -v morematching=1 -v nosubsection=$nosubsection "
+BEGIN    { IGNORECASE = 1 }
+
+/$BEGIN_RE/ {
+
+	if (print_header)
+	    print
+
+	while (1) {
+#		last_line=tmp
+		
+		if (getline tmp <= 0) {
+		    break;
+		}
+		if (tmp ~ /$END_RE/) {
+			getline tmp2
+			if (tmp2 ~ /^\.IX Subsection/ && nosubsection) {
+				sub(/^\.Sh/, \".SS\", tmp)
+				print (tmp \"\n\" tmp2 )
+			}
+			else {
+				if (morematching)
+				    break;
+				else
+				    exit;
+			}
+		}
+		else
+			print (tmp);
+	}
+}
+
+" "$1"
+}
+
+printcount () {
+    printf "%.5d" $1
+}
+
+scan_manpage () {
+
+	[ ! -f "$2" ] && return 1
+
+	local check head manpage_decompressed="$TMPDIR/.$PROGRAM$$/man"
+
+	{   case "$2" in
+		*.bz2) bzcat "$2"
+	    ;;
+		*.gz | *.[Zz]) zcat "$2"
+	    ;;
+		*) manpage_decompressed="$2"
+	    esac
+	} >$manpage_decompressed
+
+	if [ "$list_section_only" = "yes" ]
+	then
+	    list_section "$manpage_decompressed"
+	    return 0
+	fi
+
+	# ".so file" directive check
+	head="`head -n 1 $manpage_decompressed`"
+	if [ "${head:0:4}" = ".so " ]
+	then
+		Error "$2 ($REFERENCE ${head:4})"
+ 	else
+		get_section $manpage_decompressed >"$seealso_output"
+		if [ -s "$seealso_output" ]
+		then
+        	    check=$(cat "$seealso_output")
+		    if [ "$check_dupes" = "$check" ]
+		    then
+# FIXME:		Do sed not work with -i here?
+#			sed -i -e "0,/^\.SH.*/a\.SH $1 ($2)" $manpage_generated.$((count-1))
+			sed -i -e "1a\.SH $1 ($2)" $manpage_generated.$(printcount $((count-1)))
+#			cat $manpage_generated.$((count-1)) | less
+		    else
+			{
+			    echo -e ".SH $1 ($2)\n"
+			    cat "$seealso_output"
+			    ((count++))
+			} >>"$manpage_generated.$(printcount $count)"
+			check_dupes="$check"
+		    fi
+		else
+			Error "$2 ($NO_SEEALSO)"
+		fi
+	fi
+}
+
+filename2man_name () {
+
+    local t=${1//*\//} ; echo ${t%\.$mansect_pattern*}
+}
+
+file_selection () {
+
+#    if [ "$enable_quiet" = 1 ]
+#    then
+#	pars_data=`$man $section $1 2>/dev/null`
+#	return
+#    fi
+    pars_data=`$man $section $1`
+}
+
+islocal_or_isname () {
+    case "$1" in
+	    *.$mansect_pattern* | *.[Gg][Zz] | *.[Zz] | *.[bB][zZ]2) 
+		[ -f "$1" ] && local_files="$1" && return ;;
+    esac
+
+    file_selection $1
+}
+
+count=0
+copy_cmd_line=$@
+
+until [ $# = 0 ]
+do
+    case "$1" in
+	*"##"*) nosubsection=0 ; COMMAND_LINE_PATTERN="${1##*##}"
+	    islocal_or_isname ${1%%#*} ;;
+	*"#"*) nosubsection=1 ; COMMAND_LINE_PATTERN="${1##*#}"
+	    islocal_or_isname ${1%%#*} ;;
+	$mansect_pattern) section=$1 ; shift ; continue ;;
+	*) islocal_or_isname $1 ;;
+    esac
+
+    MAN_HEAD=$PROGRAM
+
+    for man_name in $local_files $pars_data
+    do
+        scan_manpage $(filename2man_name $man_name) $man_name
+    done
+
+    shift ; unset pars_data local_files COMMAND_LINE_PATTERN
+done
+
+add_preamble () {
+#
+#	'^\.Vb [:digit:]*'
+cat <<-"TEXT"
+.de Vb \" Begin verbatim text
+.ft CW
+.nf
+.ne \\$1
+..
+.de Ve \" End verbatim text
+.ft R
+.fi
+..
+TEXT
+}
+
+if [ "$list_section_only" = "yes" ]
+then
+    [ -s "$seealso_output" ] && tr -d \" <"$seealso_output" | sort | uniq
+    seealso_exit
+fi
+
+if [ -s "$manpage_generated.00000" ]
+then
+	{
+	add_preamble
+	echo -e ".TH \"${MAN_HEAD:0:40}\""
+	awk '
+  {
+# ".Ip" can hide entries (it is found in manpage generated by Pod::Man)
+    sub(/^\.Ip/,".IP")
+
+# ".Xr" hides entries (ex. col(1), more(1), yacc(1), ecc.)
+    if ($0 ~ /\.Xr .* [1-9nlpo]/)
+	print gensub(/\.Xr (.+) ([1-9nlpo]) *(,)?/,".BR \\1 (\\2)\\3", "g")
+    else
+	print
+}' $manpage_generated.*
+	} >$manpage_generated
+
+	$manexe $manpage_generated
+else
+	Error $PROGRAM: $ERROR \"$copy_cmd_line\"
+	exit_status=16
+fi
+
+seealso_exit
+
+# Extra
+#
+# BUILD 'SEE ALSO' TABLES
+#
+
+manpage_seealso=$PROGRAM"_table"
+enable_quiet=1
+enable_delete=0
+
+# manpath bash expansion idea found in `bash_completion' package
+for db in ${MANPATH//://*man$mansect_pattern }
+do
+    unset check_dupes ; count=0
+    rm -f $manpage_generated*
+    dir_section=${db//*man}
+
+    output="$db/$manpage_seealso.$dir_section"
+
+    if [ "$enable_delete" = 1 ]
+    then 
+	[ -e $output.* ] \
+	    && rm -v $output.*
+	continue
+    fi
+
+    for file in $db/*
+    do
+	scan_manpage $(filename2man_name $file) $file
+    done
+
+    if [ -s "$manpage_generated.00000" ]
+    then
+ 	{ echo -e .TH \"$MAN_HEAD\" \
+	"$dir_section" \
+	\"$(date +"%e %B %Y")\" \
+	\"seealso $VER\" \
+	\"$PROGRAM database\"
+	cat $manpage_generated.*
+	} >$manpage_generated
+    fi
+
+    compression_type=${file//*.}
+
+    case "$compression_type" in
+	gz) crunch_exe=gzip ;;
+	bz2) crunch_exe="bzip2" ;;
+	*) crunch_exe=gzip ;;
+    esac
+
+    [ -s $manpage_generated ] \
+	&& $crunch_exe -c $manpage_generated >$output.$compression_type \
+	&& echo $output.$compression_type created.
+done

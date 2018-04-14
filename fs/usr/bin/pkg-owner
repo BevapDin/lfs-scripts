@@ -1,0 +1,55 @@
+#! /bin/bash
+
+echo_owner() {
+	local file=""
+	local x=""
+	local next=""
+
+	file="$1"
+	if ! [ -e "$file" ] ; then
+		x="$(which "$file")"
+		if ! [ -z "$x" ] ; then
+			file="$x"
+		fi
+	fi
+	while true ; do
+#		echo ">> $file"
+		next="$(readlink "$file" 2>/dev/null)"
+		if [ -n "$next" ] ; then
+			if [ "${next/#\/}" == "$next" ] ; then
+				file="${file%/*}"
+#				echo "> $file"
+				if [ -z "$file" ] ; then
+					file="./$next"
+				else
+					file="$file/$next"
+				fi
+			else
+				file="$next"
+			fi
+			continue
+		fi
+		if ! [ -e "$file" ] ; then
+			echo "Broken: $file"
+			return 1
+		fi
+		stat '--format=%U:%G' "$file"
+		return 0
+	done
+}
+
+if [ "$#" == 1 ] ; then
+	echo_owner "$1"
+	exit $?
+fi
+
+ret=0
+while ! [ -z "$1" ] ; do
+	file="$1"
+	shift 1
+	echo -n "$file: "
+	echo_owner "$file" || ret=$?
+done
+
+exit $ret
+

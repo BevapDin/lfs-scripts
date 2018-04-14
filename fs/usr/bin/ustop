@@ -1,0 +1,6 @@
+#! /bin/bash
+
+for d in "$@" ; do
+	kill -SIGSTOP $(pgrep -u "$d")
+done
+

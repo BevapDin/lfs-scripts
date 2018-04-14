@@ -1,0 +1,72 @@
+#! /bin/bash
+
+PATH="$PATH:/sbin:/usr/sbin"
+
+lsofpids() {
+	local dev="$1"
+	lsof -F '' "$dev" | tr -d p | tr '\n' ' '
+}
+
+xumount() {
+	local dev="$1"
+	local name="${2-$dev}"
+	if mount | grep -q "$dev" ; then
+		if umount "$dev" 2>/dev/null ; then
+			return 0
+		fi
+#		echo "Failed to umount $name lsof followes"
+		local PIDS="$(lsofpids "$dev")"
+#		echo "PIDS are: $PIDS"
+		kill -SIGTERM $PIDS
+		sleep 2
+		if umount "$dev" 2>/dev/null ; then
+			return 0
+		fi
+#		echo "Umount failed again for $name"
+		local PIDS="$(lsofpids "$dev")"
+#		echo "PIDS are: $PIDS"
+		kill -SIGKILL $PIDS
+		sleep 2
+		if umount "$dev" 2>/dev/null ; then
+			return 0
+		fi
+		echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		echo "! Failed finally to umount $name"
+		echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+		lsof "$dev"
+		sleep 4
+    fi
+}
+
+cd /dev/mapper
+
+for d in * ; do
+	case $d in
+		swap)
+			continue
+			;;
+		control)
+			continue
+			;;
+		truecrypt*)
+			if which truecrypt 2>/dev/null ; then
+				xumount "/dev/mapper/$d" "$d"
+				truecrypt --dismount /dev/mapper/$d 2>/dev/null
+				continue
+			fi
+		;;
+	esac
+	xumount "/dev/mapper/$d" "$d"
+	cryptsetup luksClose $d
+done
+
+if which truecrypt 2>/dev/null ; then
+	truecrypt --dismount
+fi
+
+if ! [ -z "$(losetup -a)" ] ; then
+	for d in /dev/loop* ; do
+		losetup -d "$d"
+	done
+fi
+

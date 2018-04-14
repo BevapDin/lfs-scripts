@@ -1,0 +1,16 @@
+#! /bin/bash
+
+user="${1-USER}"
+
+if ! id "$user" 1>/dev/null 2>/dev/null ; then
+	puser="$(echo /usr/src/*$user*)"
+	puser="${puser/\/usr\/src\/}"
+	if ! id "$puser" 1>/dev/null 2>/dev/null ; then
+		echo "Unkown package, did you mean:"
+		cd /usr/src && ls -1d *$user* 2>/dev/null
+		exit 1
+	fi
+	user="$puser"
+fi
+
+exec tpkgs --info "$user"

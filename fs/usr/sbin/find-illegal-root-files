@@ -1,0 +1,15 @@
+#! /bin/bash
+
+# this script finds files which were owned by root, but shouldn't be.
+
+while [ $# -gt 0 ] ; do
+ FOLDER="$FOLDER $1"
+ shift 1
+done
+
+if [ -z "$FOLDER" ] ; then
+ find /usr/{bin,sbin,info,lib,doc} -user root \( -group root -o \( -! -group install \) \) -a -! -perm /u+s
+else
+ find $FOLDER -user root \( -group root -o \( -! -group install \) \) -a -! -perm /u+s
+fi
+
