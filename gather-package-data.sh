@@ -62,4 +62,6 @@ gather_from_dir() {
 find "$GLOBAL_PACKAGE_USER_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | \
 while read pkg ; do
 	# List all the files you want to gather here:
+	# File with URL used by the `new` utility.
+	gather_file "$pkg" ".url" || exit $?
 done
