@@ -1,0 +1,13 @@
+#! /bin/bash
+
+if [ -e "$HOME/.version" ] ; then
+	. "$HOME/.version"
+	exit $?
+fi
+if tpkgs --version ; then
+	exit 0
+fi
+
+echo "Missing $HOME/.version" 1>&2
+exit 1
+

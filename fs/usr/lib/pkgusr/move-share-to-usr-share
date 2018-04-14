@@ -1,0 +1,87 @@
+#! /bin/bash
+
+usage() {
+ echo "Usage: $0 <source> [<dest>]"
+ echo "Example: $0 /opt/myprog/share /usr/share"
+ echo "Default destination is /usr/share"
+ exit 1
+}
+
+if [ "$1" == "-?" ] ; then
+ usage
+fi
+if [ "$#" -gt 2 ] ; then
+ usage
+fi
+if [ "$#" == 0 ] ; then
+ usage
+fi
+
+
+if [ -z "$2" ] ; then
+ dest="/usr/share"
+else
+ dest="$2"
+fi
+src="$1"
+
+echo "Doing $src --> $dest"
+if [ -s "$src" ] ; then
+ if [ "$(readlink "$src")" == "$dest" ] ; then
+  exit 0
+ fi
+fi
+
+ret=0
+# Returns: 0 -- folder $src is either empty or contains only links
+# 1 --> folder $src is not empty.
+
+pushd "$src" 1>/dev/null
+for d in * ; do
+ if [ "$d" == '*' ] ; then
+  continue
+ fi
+ if [ -d "$d" ] ; then
+  if [ ! -e "$dest/$d" ] ; then
+   if mv "$src/$d" "$dest/$d" ; then
+    ln -s "$dest/$d" "$src/$d"
+   else
+    echo "Couldn't move $src/$d to $dest/$d - ignoring this folder" 1>&2
+    ret=1
+   fi
+   continue
+  fi
+  if [ -d "$dest/$d" ] ; then
+   "$0" "$src/$d" "$dest/$d"
+   if [ $? != 0 ] ; then
+    ret=1
+   fi
+  else
+   echo "Warn: Source $src/$d is a folder, destination $dest/$d not!" 1>&2
+   ret=1
+  fi
+  continue
+ fi
+ if [ -s "$src/$d" ] ; then
+  if [ "$(readlink "$src/$d")" == "$dest/$d" ] ; then
+   continue
+  fi
+ fi
+ if [ -e "$dest/$d" ] ; then
+  echo "Warn: Destination $dest/$d already exists!" 1>&2
+  ret=1
+  continue
+ fi
+ if mv "$src/$d" "$dest/$d" ; then
+  ln -s "$dest/$d" "$src/$d"
+ else
+  ret=1
+ fi
+done
+popd 1>/dev/null
+if [ $ret == 0 ] ; then
+ rm -r "$src" && ln -s "$dest" "$src"
+fi
+
+exit $ret
+

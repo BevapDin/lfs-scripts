@@ -1,0 +1,160 @@
+#! /bin/bash
+
+# Dieses Script erstellt die notwendigen Links in /opt/{bin,man,info,include,lib,doc}
+
+usage() {
+ echo "Usage: $0 <dir>"
+ echo "<dir> is a _relative_ to /opt name of folder containing"
+ echo "the folders bin, include, lib etc."
+ echo "Example: $0 amule"
+ exit 1
+}
+
+verbose="true"
+
+# $1 - Verzeichnis, in dem die Links erstellt werden sollen
+# $2 - Verzeichnis, zu dem gelinkt werden soll (_Relativ_ zu $1)
+mklinks() {
+ local dest="$1"
+ local src="$2"
+ local tab="${3->}"
+
+ $verbose "mklinks $dest $src"
+
+ if [ -L "$dest" ] ; then
+  echo "$tab Destination is is a link: $dest" 1>&2
+  echo "$tab Ignoring source $src" 1>&2
+  ls -ld "$dest" 1>&2 2>/dev/null
+  return 1
+ fi
+
+ if [ ! -d "$dest" ] ; then
+  echo "$tab Destination is not a folder: $dest [adjust this in $0]" 1>&2
+  echo "$tab Ignoring source $src" 1>&2
+  ls -ld "$dest" 1>&2 2>/dev/null
+  return 1
+ fi
+
+ pushd "$dest" 1>/dev/null || return $?
+
+ if [ ! -d "$src" ] ; then
+  echo "$tab Source is not a folder: $src (relativ to $dest)" 1>&2
+  echo "$tab Ignoring source $src" 1>&2
+  ls -ld "$src" 2>/dev/null 1>&2
+  popd 1>/dev/null 2>&1
+  return 1
+ fi
+
+ $verbose "$tab Linking anything in $src into $dest"
+ tab="${tab}>"
+ for srcfile in "$src"/* ; do
+  if [ ! -e "$srcfile" ] ; then continue ; fi
+  local name="${srcfile##*/}"
+  local destfile="$dest/$name"
+
+  if [ ! -e "$destfile" ] ; then
+   if [ -L "$destfile" ] ; then
+    $verbose "$tab Broken link"
+    ls -ld "$destfile"
+    if ! rm "$destfile" ; then
+     echo "$tab Could not remove broken link $destfile" 1>&2
+     ls -ld "$destfile" 1>&2
+     continue
+    fi
+   fi
+   # $destfile is no broken link, does really not exist
+   $verbose "$tab $srcfile --> $destfile"
+   if ! ln -s "$srcfile" "$destfile" ; then
+    echo "$tab Could not make a link from $srcfile --> $destfile" 1>&2
+    ls -ld "$srcfile" "$dest" 2>/dev/null 1>&2
+   fi
+   continue
+  fi
+
+  if [ -L "$destfile" ] ; then
+   local old_link_src="$(readlink "$destfile")"
+   if [ "${old_link_src}" == "$srcfile" ] ; then
+    continue
+   fi
+   if [ "${old_link_src}" == "/dev/null" ] ; then
+    echo "$tab Destination $destfile is a locked link, ignoring $destfile!" 1>&2
+    continue
+   fi
+   if [ "$(stat --printf="%G" "${old_link_src}")" == "root" ] ; then
+    echo "$tab Destination $destfile is from root, new content may interfer with old one" 1>&2
+    echo "$tab ignoring $destfile!" 1>&2
+    continue
+   fi
+   echo "$tab Destination $destfile is a wrong link to $old_link_src" 1>&2
+   if rm "$destfile" ; then
+    continue
+   else
+    echo "Can not delete $destfile" 1>&2
+   fi
+  fi
+
+  if [ -d "$destfile" ] ; then
+   if [ -d "$srcfile" ] ; then
+    # $destfile ist schon vorhanden und ein Verzeichnis --> Rekursiv
+    mklinks "$destfile" "../$srcfile" "$tab"
+    continue
+   fi
+   echo "$tab Attention: $name in destination $dest is a folder, in source $src it isn't." 1>&2
+   echo "$tab Ignoring source $srcfile" 1>&2
+   ls -ld "$srcfile" "$destfile" 1>&1 2>/dev/null
+   continue
+  fi
+  if rm "$destfile" ; then
+   $verbose "$tab Linking $srcfile --> $destfile"
+   if ! ln $debug -s "$srcfile" "$destfile" ; then
+    echo "$tab Couldn't make a link from $srcfile --> $destfile" 1>&2
+   fi
+   continue
+  fi
+  echo "$tab Attention: could not remove $destfile" 1>&2
+  echo "$tab Ignoring source $srcfile" 1>&2
+  ls -ld "$srcfile" "$destfile" 1>&1 2>/dev/null
+ done
+ popd 1>/dev/null 2>&1
+}
+
+src=
+
+while [ "$#" -gt 0 ] ; do
+	opt="$1"
+	shift
+	case "$opt" in
+		-\?|--help|-h)
+			usage
+			;;
+		--verbose)
+			verbose="echo"
+			;;
+		*)
+			if ! [ -z "$src" ] ; then
+				usage
+			fi
+			src="$opt"
+			;;
+	esac
+done
+
+if [ -z "$src" ] ; then
+	usage
+fi
+
+for dir in bin include info lib doc man ; do
+ if [ -d "/opt/$src/$dir" ] ; then
+  mklinks "/opt/$dir" "../$src/$dir"
+ fi
+
+ if [ -d "/opt/$src/share/$dir" ] ; then
+  mklinks "/opt/$dir" "../$src/share/$dir"
+ fi
+done
+
+if [ -d "../$src/libexec" ] ; then
+ mklinks /opt/lib "../$src/libexec"
+fi
+
+

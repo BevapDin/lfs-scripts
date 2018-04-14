@@ -1,0 +1,10 @@
+#! /bin/bash
+
+S="${HOME}/.version"
+if [ ! -e "${S}" ] ; then
+	echo "Missing version script: ${S}"
+	exit 1
+fi
+
+. "${S}"
+

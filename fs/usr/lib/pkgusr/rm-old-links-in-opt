@@ -1,0 +1,5 @@
+#! /bin/bash
+
+pkg="$USER"
+
+find -H /opt/{bin,doc,include,info,lib,man} -type l -user "$pkg" -o -group "$pkg" -ls
