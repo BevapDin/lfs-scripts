@@ -1,0 +1,160 @@
+#! /bin/bash
+
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin:$HOME/bin:$PATH
+
+MAKE_BACKUP=true
+
+if [ "$1" = "--no-backup" ] ; then
+	shift 1
+	MAKE_BACKUP=false
+fi
+
+# If the return value of the previous command is not 0 (the command
+# failed), this functions prints the message on stderr and exist the script.
+# Usage: evalreturn $? "message"
+evalreturn() {
+	local ret="$1"
+	local msg="$2"
+	if [ "$ret" != 0 ] ; then
+		echo "$msg" 1>&2
+		exit "$ret"
+	fi
+}
+
+# The file that contains the version of the to-be-installed kernel
+# is relativ to the current working dir (the kernel source dir).
+VERSION_FILE="include/config/kernel.release"
+
+# We need the kernel version here before the other pathes are set up, as they
+# depend on the version.
+
+if ! [ -f "$VERSION_FILE" ] ; then
+  echo "$VERSION_FILE not found: can not determine new kernel version." 1>&2
+  exit 1
+fi
+
+VERSION="$(cat "$VERSION_FILE")"
+evalreturn $? "Failed to cat $VERSION_FILE"
+echo "Installing Kernel $VERSION"
+
+# == Where to install to ==
+# Location of the kernels (dir) and the device (dev)
+# The device is used to make sure it's mounted. Otherwise
+# (e.g. for the path of the kernels) the dir is used.
+# If your boot device is always ounted (or if it's not a
+# separate device at all), you may specify BOOT_DEV=/
+BOOT_DIR="${BOOT_DIR-/boot}"
+BOOT_DEV="${BOOT_DEV-$BOOT_DIR}"
+
+# Pathes of files to install:
+# The file name where to install the kernel image.
+KERNEL_IMAGE_FILE_NAME="lfskernel-$VERSION"
+# And the path of it
+KERNEL_IMAGE_FILE="$BOOT_DIR/$KERNEL_IMAGE_FILE_NAME"
+# The path where to install the System.map file
+KERNEL_MAP_FILE="$BOOT_DIR/System.map-$VERSION"
+# The path where to install the configuration
+KERNEL_CONFIG_FILE="$BOOT_DIR/config-$VERSION"
+KERNEL_DOC_DIR="/usr/share/doc/linux-$VERSION"
+# The path where the modules are installed
+MODULES_DIR="/lib/modules/$VERSION"
+
+# == What to install ==
+# The newly created kernel image file (may be different for different
+# architectures). This file will be installed.
+KERNEL_IMAGE="arch/i386/boot/bzImage"
+
+mkbackup() {
+	local file="$1"
+	if ! [ -e "$file" ] ; then
+		# No need to backup: source file does not exists, silently skipped!
+		return 0
+	fi
+	seq 1 100 | while read nr ; do
+		backup="$file.bak.$nr"
+		if [ -e "$backup" ] ; then continue ; fi
+		mv -vf "$file" "$backup"
+		evalreturn $? "Backup of $file failed"
+		return 0
+	done
+	if [ -e "$file" ] ; then
+		echo "Backup of $file failed: could not find unused backup number" 1>&2
+		exit 1
+	else
+		return 0
+	fi
+}
+
+# Install modules, this does not need the BOOT_DEV to be mounted, so do it first.
+if $MAKE_BACKUP ; then
+	mkbackup "$MODULES_DIR" || exit $?
+fi
+make modules_install || exit $?
+
+# Hack for kernels above 3.7.0
+# Those have moved the version.h file (needed by the ati-driver)
+# This is completely optional, therfor we do not exit the script if
+# something fails.
+VERSION_H="/lib/modules/$VERSION/source/include/linux/version.h"
+ALT_VERSION_H="/lib/modules/$VERSION/source/include/generated/uapi/linux/version.h"
+if ! [ -e "$VERSION_H" ] ; then
+	if [ -e "$ALT_VERSION_H" ] ; then
+		if ! ln -s ../generated/uapi/linux/version.h "$VERSION_H" ; then
+			echo "Making symlink for version.h failed!" 1>&2
+		fi
+	else
+		echo "Missing version.h and not found in its alternativ location!" 1>&2
+	fi
+fi
+
+if grep -qF "$BOOT_DEV" /etc/fstab ; then
+	# Further installation needs the BOOT_DEV, so check and if needed mount it.
+	if mount | grep -q "$BOOT_DEV" ; then
+		true
+	else
+		sudo /bin/mount "$BOOT_DEV" || exit $?
+	fi
+fi
+
+# Make Backup of old files.
+if $MAKE_BACKUP ; then
+	mkbackup "$KERNEL_IMAGE_FILE" || exit $?
+	mkbackup "$KERNEL_MAP_FILE" || exit $?
+	mkbackup "$KERNEL_CONFIG_FILE" || exit $?
+fi
+
+# Copy kernel image.
+cp -v "$KERNEL_IMAGE" "$KERNEL_IMAGE_FILE" || exit $?
+if ! ln -vfs "$KERNEL_IMAGE_FILE_NAME" "$BOOT_DIR/vmlinuz.new" ; then
+	# This is optional and does not abort the script!
+	echo "Failed to make symlink to new kernel image $BOOT_DIR/vmlinuz.new" 1>&2
+fi
+
+# Copy the System.map file
+cp -v System.map "$KERNEL_MAP_FILE" || exit $?;
+
+# Copy the configuration file
+cp -v .config "$KERNEL_CONFIG_FILE" || exit $?;
+
+# Also install the documentation, this is optional, therfor do not
+# abort the script if it fails.
+if [ -e "$KERNEL_DOC_DIR" ] ; then
+	echo "Kernel documention already exist, skipping installation of it."
+else
+	if install -d "$KERNEL_DOC_DIR" ; then
+		if cp -r Documentation/* "$KERNEL_DOC_DIR" ; then
+			true
+		else
+			echo "Failed to copy the kernel documentation!" 1>&2
+		fi
+	else
+		echo "Failed to make the documention dir: $KERNEL_DOC_DIR" 1>&2
+	fi
+fi
+
+update-grub-config "$VERSION"
+
+list-missing-modules.sh "$(uname -r)" "$VERSION"
+
+exit 0
+

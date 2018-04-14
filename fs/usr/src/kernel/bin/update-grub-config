@@ -1,0 +1,38 @@
+#! /bin/bash
+
+VERSION="${1?Missing version}"
+
+# Note: you might wanna cange this on other computers:
+GC_LINUX_ROOT="/dev/sdc1"
+
+GC_LINUX_PATH="/lfskernel-$VERSION"
+GC_LINUX_CMD="root=$GC_LINUX_ROOT"
+
+# Grub configuratiun file
+CG_GRUB_CONF="/boot/grub/grub.cfg"
+
+export PATH=/sbin:/bin:/usr/sbin:/usr/bin:$HOME/bin:$PATH
+
+# Make an entry in the grub menu configuration for exactly this kernel
+# We don't care if this failed, as normly the vmlinuz symlink is used to
+# select which kernel to boot. Normaly you only need to choose from:
+# current (known to be working), old (previously working) and new kernel.
+if grep -Fq "$GC_LINUX_PATH" "$CG_GRUB_CONF" ; then
+	echo "Grub configuration is already up to date."
+	exit 0
+fi
+
+# Version without the suffix '-xxx'
+TV="${VERSION%-*}"
+cat >> "$CG_GRUB_CONF" << EOF
+menuentry "LFS $TV" {
+    linux $GC_LINUX_PATH $GC_LINUX_CMD
+}
+EOF
+
+if [ "$?" != 0 ] ; then
+	exit $?
+fi
+
+echo "Updated grub for v$TV."
+exit 0

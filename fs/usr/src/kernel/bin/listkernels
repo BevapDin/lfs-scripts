@@ -1,0 +1,30 @@
+#! /bin/bash
+
+UNAMER="$(uname -r)"
+CURVER_FILE="/etc/current-kernel-version.txt"
+
+kernelversion() {
+	local l="$1"
+	if ! [ -L "$l" ] ; then
+		echo "<not defined>"
+	else
+		local v="$(readlink "$l")"
+		v="${v#lfskernel-}"
+		local vv="${v%-*}"
+		echo -n "$v"
+		if [ "$v" = "$UNAMER" ] ; then 
+			echo -n " (activ)"
+		fi
+		if [ -e "$CURVER_FILE" ] ; then
+			if grep -qE "^$vv\$" "$CURVER_FILE" ; then
+				echo -n " (current)"
+			fi
+		fi
+	fi
+}
+
+stat -c '%y %n' /boot/lfskernel* | sort -n
+
+echo "Normaly booted kernel:" $(kernelversion "/boot/vmlinuz")
+echo "Old kernel:           " $(kernelversion "/boot/vmlinuz.old")
+echo "New kernel:           " $(kernelversion "/boot/vmlinuz.new")

@@ -1,0 +1,169 @@
+#! /bin/bash
+
+# This script checks that every extension in the extension folder is enabled in the php.ini
+# and that every enabled extension from the php.ini really exist.
+#
+# It can also repair the php.ini file by disabling non-existing / enabling existing extensions.
+
+# Output:
+# "== ext.so" for every extension that is enabled and that exists.
+# ">> ext.so" for extensions that are not enabled but exist.
+# "<< ext.so" for enabled but not existing extensions.
+# And finally the number of enabled and of existing extensions.
+
+# The php-Version string for the library-folder.
+version=20090626
+# The location of the php.ini
+phpini=/etc/php/php.ini
+
+# Repair the ini file?
+repair=false
+# Be quiet (less output)?
+quit=false
+# Clean up the ini file?
+clean=false
+
+usage() {
+	echo "Usage: $0 {[options]} "
+	echo "-v <ver> ... version of php API (folder in /usr/lib/php) [$version]"
+	echo "-i <ini> ... location of the php.ini [$phpini]"
+	echo "-q ... quiet (don't print modules which are enabled and exist)"
+	echo "-r ... repair the php.ini (extension which were repaired get an ! at the output)"
+	echo "-c ... clean the php.ini up a little."
+}
+
+while [ $# -gt 0 ] ; do
+	opt="$1"
+	shift 1
+	case "$opt" in
+		--help|-h|-\?)
+			usage
+			exit 1
+			;;
+		-c)
+			clean=true
+			;;
+		-q)
+			quit=true
+			;;
+		-r)
+			repair=true
+			;;
+		-v)
+			version="$1"
+			shift 1
+			;;
+		-i)
+			phpini="$1"
+			shift 1
+			;;
+		*)
+			echo "Unknown option: $opt" 1>&2
+			usage 1>&2
+			exit 1
+			;;
+	esac
+done
+
+libdir="/usr/lib/php/$version"
+
+# Extensions listed there are ignored.
+ignore_file=~/.extensions.ignore
+
+# Check whether the given extension should be ignored.
+ignore_extension() {
+	if grep -q "$1" "$ignore_file" ; then
+		return 0
+	else
+		return 1
+	fi
+}
+
+# Backup the ini file, can be called several times, will only create a backup the first time.
+backuped=false
+backup_ini_file() {
+	if $backuped ; then
+		return 0
+	fi
+	echo "Backing up $phpini"
+	if cp -f "$phpini" "$phpini.bak" ; then
+		backuped=true
+		return 0
+	fi
+	return 1
+}
+
+add_extension() {
+	backup_ini_file || return 1
+	sed -i "s/^; --- new extensions ---$/\0\nextension=$1/" "$phpini"
+}
+
+clean_for_extension() {
+	if ! $clean ; then
+		return 1
+	fi
+	backup_ini_file || return 1
+	sed -i "s/^;.*extension *= *$1.*$//" "$phpini"
+	return 0
+}
+
+remove_extension() {
+	backup_ini_file || return 1
+	sed -i "s/^extension=$1$/;extension=$1/" "$phpini"
+}
+
+find "$libdir/" -iname '*.so' -printf '%f\n' | \
+	sort | \
+	while read ext ; do
+		if ignore_extension "$ext" ; then
+			continue
+		fi
+		if grep -q "^extension=$ext$" "$phpini"; then
+			if ! $quit ; then
+				echo "== $ext"
+				clean_for_extension "$ext"
+			fi
+			continue
+		fi
+		# not enabled, but existing
+		if $repair ; then
+			if add_extension "$ext" ; then
+				echo "== $ext !"
+				clean_for_extension "$ext"
+			else
+				echo ">> $ext !"
+			fi
+		else
+			echo ">> $ext"
+		fi
+	done
+
+grep "^extension=" "$phpini" | \
+sed "s/extension=//" | \
+	while read ext ; do
+		if ignore_extension "$ext" ; then
+			continue
+		fi
+		if [ -e "$libdir/$ext" ] ; then
+			# Handled by the loop above
+			continue
+		fi
+		if $repair ; then
+			if remove_extension "$ext" ; then
+				echo "== $ext !"
+				clean_for_extension "$ext"
+			else
+				echo "<< $ext !"
+			fi
+		else
+			echo "<< $ext"
+		fi
+	done
+
+# Existing extensions
+n1=`ls -1 "$libdir" | wc -l`
+# Enabled extensions
+n2=`grep "^extension=" "$phpini" | wc -l`
+echo "$n1 -- $n2"
+
+exit 0

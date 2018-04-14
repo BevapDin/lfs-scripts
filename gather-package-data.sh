@@ -66,4 +66,6 @@ while read pkg ; do
 	gather_file "$pkg" ".url" || exit $?
 	# File with package specific notes.
 	gather_file "$pkg" "notes" || exit $?
+	# Individual scripts used only by this package
+	gather_from_dir "$pkg" "bin" || exit $?
 done

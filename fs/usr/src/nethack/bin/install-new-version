@@ -1,0 +1,18 @@
+#! /bin/bash
+
+dest=/usr/local/games/nethack
+
+install_x() {
+ cp -v "$1" "$dest" && /bin/chmod -v g+s "$dest" && exit 0
+ /bin/chmod --reference "$dest" "$1" && /bin/chown --reference "$dest" "$1" && cp -a "$1" "$dest" && exit 0
+ exit 1
+}
+
+if [ -e nethack ] ; then
+ install_x nethack
+fi
+if [ -e src/nethack ] ; then
+ install_x src/nethack
+fi
+
+echo "No nethack found!"
