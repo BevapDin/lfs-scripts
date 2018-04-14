@@ -2,6 +2,7 @@
 
 find \
 	/etc/pkgusr \
+	/etc/tpkgs.conf \
 	/etc/syslog.conf \
 	/etc/profile \
 	/etc/profile.d/extrapaths.sh \

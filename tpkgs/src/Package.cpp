@@ -11,7 +11,7 @@
 
 #include <cstdlib>
 
-#define CONFIG_FILE_FILENAME ".tpkgs2.conf"
+#define CONFIG_FILE_FILENAME ".tpkgs.conf"
 
 static const std::string cvl("Current");
 static const Package::UID INVALID_UID(static_cast<Package::UID>(-1));
@@ -201,7 +201,11 @@ void Package::setUninstalled() {
 }
 
 Package::Path Package::getConfigFile() const {
-	return _packageDir / CONFIG_FILE_FILENAME;
+	if(const char *HOME = getenv("HOME")) {
+		return Path(HOME) / CONFIG_FILE_FILENAME;
+	} else {
+		return Path("/usr/src") / getName() / CONFIG_FILE_FILENAME;
+	}
 }
 
 Package::Path Package::getConfigFile(const Version &version) const {

@@ -194,8 +194,7 @@ int xmain(int argc, char *argv[]) {
 	};
 
 	TPKGS tp;
-	tp.loadConfig("/etc/tpkgs2.conf");
-	tp.loadConfig("tp.conf");
+	tp.loadConfig("/etc/tpkgs.conf");
 	Popt popt(tp);
 	static const char *otherHelp = "\
 You must specify one these actions:\n\
