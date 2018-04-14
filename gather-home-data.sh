@@ -1,6 +1,7 @@
 #! /bin/bash
 
 find \
+	$HOME/bin \
 	$HOME/.icewm | \
 while read path ; do
 	src="$path"
