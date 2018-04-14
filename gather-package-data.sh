@@ -64,4 +64,6 @@ while read pkg ; do
 	# List all the files you want to gather here:
 	# File with URL used by the `new` utility.
 	gather_file "$pkg" ".url" || exit $?
+	# File with package specific notes.
+	gather_file "$pkg" "notes" || exit $?
 done

@@ -1,0 +1,2 @@
+Also dowlonad the man page and install it via 
+mv man7 man1 man5 /packages/git/<version>/usr/share/man/
