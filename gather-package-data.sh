@@ -69,3 +69,5 @@ while read pkg ; do
 	# Individual scripts used only by this package
 	gather_from_dir "$pkg" "bin" || exit $?
 done
+# Special, should be incorporated into a patch, maybe.
+gather_file "lua" "lua.pc" || exit $?

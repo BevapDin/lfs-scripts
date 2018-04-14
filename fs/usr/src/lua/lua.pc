@@ -1,0 +1,11 @@
+prefix=/usr
+exec_prefix=${prefix}
+libdir=${exec_prefix}/lib
+includedir=${prefix}/include
+
+Name: Lua
+Description: Lua
+Version: 5.3
+Requires: 
+Libs: -L${libdir} -llua
+Cflags: -I${includedir} 
