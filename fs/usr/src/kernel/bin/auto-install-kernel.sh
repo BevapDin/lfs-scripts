@@ -94,8 +94,7 @@ findtar() {
 downloadkernel() {
 	local version="$1"
 #	local mbv="${version%.*}"
-#	local url="ftp://ftp.kernel.org/pub/linux/kernel/v${mbv}/$KSOURCE_TAR"
-	local url="https://www.kernel.org/pub/linux/kernel/v4.x/$KSOURCE_TAR"
+	local url="https://cdn.kernel.org/pub/linux/kernel/v4.x/$KSOURCE_TAR"
 #	if wget -d -O "$KSOURCE_TAR" "$url" ; then
 	if curl -o "$KSOURCE_TAR" "$url" ; then
 		return 0
